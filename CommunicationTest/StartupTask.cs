@@ -76,18 +76,20 @@ namespace CommunicationTest
         public async void InitTWIAsync()
         {
             Debug.WriteLine("TWI Interface: Start initialisation...");
-            var settings1 = new I2cConnectionSettings(0x48) { BusSpeed = I2cBusSpeed.FastMode };   // Temperature Sensor
-            var settings2 = new I2cConnectionSettings(0x56) { BusSpeed = I2cBusSpeed.FastMode };   // ATmega uController
-            var settings3 = new I2cConnectionSettings(0x60) { BusSpeed = I2cBusSpeed.FastMode };   // Visible Light Sensor
+            var settings1  = new I2cConnectionSettings(0x48) { BusSpeed = I2cBusSpeed.FastMode };   // Temperature Sensor
+            var settings2  = new I2cConnectionSettings(0x56) { BusSpeed = I2cBusSpeed.FastMode };   // ATmega uController
+            var settings3  = new I2cConnectionSettings(0x60) { BusSpeed = I2cBusSpeed.FastMode };   // Visible Light Sensor
             var controller = await I2cController.GetDefaultAsync();                                // Create an I2cDevice with our selected bus controller and I2C settings
 
-            TWI_Temperature = controller.GetDevice(settings1);
-            TWI_uController = controller.GetDevice(settings2);
+            TWI_Temperature  = controller.GetDevice(settings1);
+            TWI_uController  = controller.GetDevice(settings2);
             TWI_VisibleLight = controller.GetDevice(settings3);
-            if (TWI_Temperature == null)  { Debug.WriteLine("TWI_Temperature: FAILURE WHILE INIT");  return; }
-            if (TWI_uController == null)  { Debug.WriteLine("TWI_uController: FAILURE WHILE INIT");  return; }
+            if (TWI_Temperature  == null) { Debug.WriteLine("TWI_Temperature: FAILURE WHILE INIT");  return; }
+            if (TWI_uController  == null) { Debug.WriteLine("TWI_uController: FAILURE WHILE INIT");  return; }
             if (TWI_VisibleLight == null) { Debug.WriteLine("TWI_VisibleLight: FAILURE WHILE INIT"); return; }
-            TWI_Temperature.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
+            TWI_Temperature.ConnectionSettings.SharingMode  = I2cSharingMode.Shared;
+            TWI_uController.ConnectionSettings.SharingMode  = I2cSharingMode.Shared;
+            TWI_VisibleLight.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
         }
 
         // ----- ATmega Commands
@@ -148,17 +150,18 @@ namespace CommunicationTest
             fDef = taskInstance.GetDeferral();          // get deferral to keep running
 
             // ----- configure GPIOs -----------
-            GpioController gpio = GpioController.GetDefault();
-            if (gpio == null) { Debug.WriteLine("GPIO initialisation FAILURE"); }
 
-            GpioPin Pin_DO1 = gpio.OpenPin(21);
-            GpioPin Pin_DO2 = gpio.OpenPin(20);
-            GpioPin Pin_DO3 = gpio.OpenPin(16);
-            GpioPin Pin_DO4 = gpio.OpenPin(12);
-            GpioPin Pin_DO5 = gpio.OpenPin(7);
-            GpioPin Pin_DO6 = gpio.OpenPin(8);
-            GpioPin Pin_DO7 = gpio.OpenPin(25);
-            GpioPin Pin_DO8 = gpio.OpenPin(24);
+            GpioController GPIOctrl = GpioController.GetDefault();
+            if (GPIOctrl == null) { Debug.WriteLine("GPIO initialisation FAILURE"); }
+            
+            GpioPin Pin_DO1 = GPIOctrl.OpenPin(21);
+            GpioPin Pin_DO2 = GPIOctrl.OpenPin(20);
+            GpioPin Pin_DO3 = GPIOctrl.OpenPin(16);
+            GpioPin Pin_DO4 = GPIOctrl.OpenPin(12);
+            GpioPin Pin_DO5 = GPIOctrl.OpenPin(7);
+            GpioPin Pin_DO6 = GPIOctrl.OpenPin(8);
+            GpioPin Pin_DO7 = GPIOctrl.OpenPin(25);
+            GpioPin Pin_DO8 = GPIOctrl.OpenPin(24);
 
             Pin_DO1.Write(GpioPinValue.Low);
             Pin_DO2.Write(GpioPinValue.Low);
@@ -168,6 +171,16 @@ namespace CommunicationTest
             Pin_DO6.Write(GpioPinValue.Low);
             Pin_DO7.Write(GpioPinValue.Low);
             Pin_DO8.Write(GpioPinValue.Low);
+
+            Pin_DO1.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO2.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO3.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO4.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO5.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO6.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO7.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO8.SetDriveMode(GpioPinDriveMode.Output);
+                     
 
             fTwiServer = new TwiServer();
             fTwiServer.InitTWIAsync();
@@ -190,6 +203,7 @@ namespace CommunicationTest
                 var uri = new Uri("http://localhost" + url);
                 switch (uri.Query)
                 {
+                    /*
                     case "?120":
                         Debug.WriteLine("Command 120 received, ATmega counter reset");
                         fTwiServer.TWI_ATmega_ResetCounter();
@@ -260,6 +274,7 @@ namespace CommunicationTest
                         Debug.WriteLine("Command 148 received, DO_8 -> OFF");
                         Pin_DO8.Write(GpioPinValue.Low);
                         return "<html><body>DO_8 -> OFF</body></html>";
+                    */
                     //-------- cmd 122 = gather sensor data ----------------------------------
                     case "?122":
                         Debug.WriteLine("Command 122 received, TWI will read");
@@ -286,14 +301,14 @@ namespace CommunicationTest
 
                         // ------- Read Light Sensor -------------
                         fTwiServer.TWI_Light_StartMeas();
-                        var VIS_DAT_H = fTwiServer.TWI_Light_ReadVis_H();
                         var VIS_DAT_L = fTwiServer.TWI_Light_ReadVis_L();
-                        var IR_DAT_H = fTwiServer.TWI_Light_ReadIR_H();
+                        var VIS_DAT_H = fTwiServer.TWI_Light_ReadVis_H();
                         var IR_DAT_L = fTwiServer.TWI_Light_ReadIR_L();
-                        var UV_DAT_H = fTwiServer.TWI_Light_ReadUV_L();
-                        var UV_DAT_L = fTwiServer.TWI_Light_ReadUV_H();
+                        var IR_DAT_H = fTwiServer.TWI_Light_ReadIR_H();
+                        var UV_DAT_L = fTwiServer.TWI_Light_ReadUV_L();
+                        var UV_DAT_H = fTwiServer.TWI_Light_ReadUV_H();
 
-                        return string.Format("< h1 > WateringControl v0.4 </ h1 >< h2 > Sensor Data:</ h2 >< table ><thead><tr><td>Source</td><td>Name</td><td>Value</td></tr></thead><tbody><tr><td>DS1621</td><td>TEMP_H</td><td>{0}</td></tr><tr><td>DS1621</td><td>TEMP_L</td><td>{1}</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>ATmega32</td><td>Dummy</td><td{2}</td></tr><tr><td>ATmega32</td><td>Flow1</td><td>{3}</td></tr><tr><td>ATmega32</td><td>Flow2</td><td>{4}</td></tr><tr><td>ATmega32</td><td>Flow3</td><td>{5}</td></tr><tr><td>ATmega32</td><td>Flow4</td><td>{6}</td></tr><tr><td>ATmega32</td><td>Flow5</td><td>{7}</td></tr><tr><td>ATmega32</td><td>Rain_H</td><td>{8}</td></tr><tr><td>ATmega32</td><td>Rain_L</td><td>{9}</td></tr><tr><td>ATmega32</td><td>Level_H</td><td>{10}</td></tr><tr><td>ATmega32</td><td>Level_L</td><td>{11}</td></tr><tr><td>ATmega32</td><td>Rain_H</td><td>{12}</td></tr><tr><td>ATmega32</td><td>Rain_L</td><td>{13}</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>SI1145</td><td>VIS_DAT_H</td><td>{14}</td></tr><tr><td>SI1145</td><td>VIS_DAT_L</td><td>{15}</td></tr><tr><td>SI1145</td><td>IR_DAT_H</td><td>{16}</td></tr><tr><td>SI1145</td><td>IR_DAT_L</td><td>{17}</td></tr><tr><td>SI1145</td><td>UV_DAT_H</td><td>{18}</td></tr><tr><td>SI1145</td><td>UV_DAT_L</td><td>{19}</td></tr></tbody></table><p>&nbsp;</p><p><strong>Raw data online visualization.</strong></p>);",
+                        return string.Format("<html><body><h1>WateringControl v0.4</h1><h2>Sensor Data:</h2><table><thead><tr><td>Source</td><td>Name</td><td>Value</td></tr></thead><tbody><tr><td>DS1621</td><td>TEMP_H</td><td>{0}</td></tr><tr><td>DS1621</td><td>TEMP_L</td><td>{1}</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>ATmega32</td><td>Dummy</td><td{2}</td></tr><tr><td>ATmega32</td><td>Flow1</td><td>{3}</td></tr><tr><td>ATmega32</td><td>Flow2</td><td>{4}</td></tr><tr><td>ATmega32</td><td>Flow3</td><td>{5}</td></tr><tr><td>ATmega32</td><td>Flow4</td><td>{6}</td></tr><tr><td>ATmega32</td><td>Flow5</td><td>{7}</td></tr><tr><td>ATmega32</td><td>Rain_H</td><td>{8}</td></tr><tr><td>ATmega32</td><td>Rain_L</td><td>{9}</td></tr><tr><td>ATmega32</td><td>Level_H</td><td>{10}</td></tr><tr><td>ATmega32</td><td>Level_L</td><td>{11}</td></tr><tr><td>ATmega32</td><td>Rain_H</td><td>{12}</td></tr><tr><td>ATmega32</td><td>Rain_L</td><td>{13}</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>SI1145</td><td>VIS_DAT_H</td><td>{14}</td></tr><tr><td>SI1145</td><td>VIS_DAT_L</td><td>{15}</td></tr><tr><td>SI1145</td><td>IR_DAT_H</td><td>{16}</td></tr><tr><td>SI1145</td><td>IR_DAT_L</td><td>{17}</td></tr><tr><td>SI1145</td><td>UV_DAT_H</td><td>{18}</td></tr><tr><td>SI1145</td><td>UV_DAT_L</td><td>{19}</td></tr></tbody></table><p>&nbsp;</p><p><strong>Raw data online visualization.</strong></p></body></html>);",
                                              0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, VIS_DAT_H, VIS_DAT_L, IR_DAT_H, IR_DAT_L, UV_DAT_H, UV_DAT_L);
                     //TEMP_H, TEMP_L, Dummy, Flow1, Flow2, Flow3, Flow4, Flow5, Rain_H, Rain_L, Level_H, Level_L, Rain_H, Rain_L, VIS_DAT_H, VIS_DAT_L, IR_DAT_H, IR_DAT_L, UV_DAT_H, UV_DAT_L);
                     default:
