@@ -10,6 +10,7 @@ using Windows.Devices.Enumeration;
 using Windows.Devices.I2c;
 using System.Diagnostics;
 using Windows.Devices.Gpio;
+using System.Xml.Linq;
 
 // The Background Application template is documented at http://go.microsoft.com/fwlink/?LinkID=533884&clcid=0x409
 
@@ -60,7 +61,7 @@ namespace CommunicationTest
                 {
                     body = new MemoryStream(Encoding.UTF8.GetBytes("No response specified"));
                 }
-                var header = Encoding.UTF8.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n");
+                var header = Encoding.UTF8.GetBytes($"HTTP/1.1 200 OK\r\nContent-Length: {body.Length}\r\nContent-Type: application/xml\r\nConnection: close\r\n\r\n");
                 await responseStream.WriteAsync(header, 0, header.Length);
                 await body.CopyToAsync(responseStream);
                 await responseStream.FlushAsync();
@@ -87,28 +88,19 @@ namespace CommunicationTest
             if (TWI_Temperature == null)  { Debug.WriteLine("TWI_Temperature: FAILURE WHILE INIT");  return; }
             if (TWI_uController == null)  { Debug.WriteLine("TWI_uController: FAILURE WHILE INIT");  return; }
             if (TWI_VisibleLight == null) { Debug.WriteLine("TWI_VisibleLight: FAILURE WHILE INIT"); return; }
-            TWI_Temperature.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
+            TWI_Temperature.ConnectionSettings.SharingMode  = I2cSharingMode.Shared;
+            TWI_uController.ConnectionSettings.SharingMode  = I2cSharingMode.Shared;
+            TWI_VisibleLight.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
         }
 
         // ----- ATmega Commands
-        public void TWI_ATmega_ResetCounter() { var vARC = new byte[] { 0x22 }; TWI_uController.Write(vARC); }
-        public void TWI_ATmega_ReadSensor()
+        public void TWI_ATmega_ResetCounter() { var vARC = new byte[] { 0x40 }; TWI_uController.Write(vARC); }
+        public byte TWI_ATmega_ReadSensor(byte vChn)
         {
-            var vASr = new byte[] { 0x21 };
-            var vASa = new byte[12];
+            var vASr = new byte[] { (byte)(32 + vChn) };    // 0x20 ... 0x28
+            var vASa = new byte[1];
             TWI_uController.WriteRead(vASr, vASa);
-            Debug.WriteLine("uC Data  0 : {0}", vASa[0]);
-            Debug.WriteLine("uC Data  1 : {1}", vASa[1]);
-            Debug.WriteLine("uC Data  2 : {2}", vASa[2]);
-            Debug.WriteLine("uC Data  3 : {3}", vASa[3]);
-            Debug.WriteLine("uC Data  4 : {4}", vASa[4]);
-            Debug.WriteLine("uC Data  5 : {5}", vASa[5]);
-            Debug.WriteLine("uC Data  6 : {6}", vASa[6]);
-            Debug.WriteLine("uC Data  7 : {7}", vASa[7]);
-            Debug.WriteLine("uC Data  8 : {8}", vASa[8]);
-            Debug.WriteLine("uC Data  9 : {9}", vASa[9]);
-            Debug.WriteLine("uC Data 10 : {10}",vASa[10]);
-            Debug.WriteLine("uC Data 11 : {11}",vASa[11]);
+            return vASa[0];
         }
 
 
@@ -159,6 +151,15 @@ namespace CommunicationTest
             GpioPin Pin_DO6 = gpio.OpenPin(8);
             GpioPin Pin_DO7 = gpio.OpenPin(25);
             GpioPin Pin_DO8 = gpio.OpenPin(24);
+
+            Pin_DO1.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
+            Pin_DO2.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
+            Pin_DO3.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
+            Pin_DO4.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
+            Pin_DO5.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
+            Pin_DO6.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
+            Pin_DO7.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
+            Pin_DO8.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
 
             Pin_DO1.Write(GpioPinValue.Low);
             Pin_DO2.Write(GpioPinValue.Low);
@@ -263,39 +264,21 @@ namespace CommunicationTest
                     //-------- cmd 122 = gather sensor data ----------------------------------
                     case "?122":
                         Debug.WriteLine("Command 122 received, TWI will read");
+                        
+                        XElement redmineRequestXML =
+                            new XElement("SensorData",
+                            new XElement("Flow1", fTwiServer.TWI_ATmega_ReadSensor(0)),
+                            new XElement("Flow2", fTwiServer.TWI_ATmega_ReadSensor(1)),
+                            new XElement("Flow3", fTwiServer.TWI_ATmega_ReadSensor(2)),
+                            new XElement("Flow4", fTwiServer.TWI_ATmega_ReadSensor(3)),
+                            new XElement("Flow5", fTwiServer.TWI_ATmega_ReadSensor(4)),
+                            new XElement("Rain" , fTwiServer.TWI_ATmega_ReadSensor(5)),
+                            new XElement("Level", fTwiServer.TWI_ATmega_ReadSensor(6)),
+                            new XElement("Press", fTwiServer.TWI_ATmega_ReadSensor(7))
+                            );
 
-                        // ------ Read Temperature Sensor --------
-                        //var TEMP_H = fTwiServer.TWI_Temperatur_TempH();
-                        //var TEMP_L = fTwiServer.TWI_Temperatur_TempL();
-
-                        // ------ Read uC values -----------------
-                        /*
-                        var Dummy = fTwiServer.TWI_ATmega_ReadSensor(0);
-                        var Flow1 = fTwiServer.TWI_ATmega_ReadSensor(1);
-                        var Flow2 = fTwiServer.TWI_ATmega_ReadSensor(2);
-                        var Flow3 = fTwiServer.TWI_ATmega_ReadSensor(3);
-                        var Flow4 = fTwiServer.TWI_ATmega_ReadSensor(4);
-                        var Flow5 = fTwiServer.TWI_ATmega_ReadSensor(5);
-                        var Rain_H = fTwiServer.TWI_ATmega_ReadSensor(6);
-                        var Rain_L = fTwiServer.TWI_ATmega_ReadSensor(7);
-                        var Level_H = fTwiServer.TWI_ATmega_ReadSensor(8);
-                        var Level_L = fTwiServer.TWI_ATmega_ReadSensor(9);
-                        var Press_H = fTwiServer.TWI_ATmega_ReadSensor(10);
-                        var Press_L = fTwiServer.TWI_ATmega_ReadSensor(11); */
-                        fTwiServer.TWI_ATmega_ReadSensor();
-
-                        // ------- Read Light Sensor -------------
-                        fTwiServer.TWI_Light_StartMeas();
-                        var VIS_DAT_H = fTwiServer.TWI_Light_ReadVis_H();
-                        var VIS_DAT_L = fTwiServer.TWI_Light_ReadVis_L();
-                        var IR_DAT_H = fTwiServer.TWI_Light_ReadIR_H();
-                        var IR_DAT_L = fTwiServer.TWI_Light_ReadIR_L();
-                        var UV_DAT_H = fTwiServer.TWI_Light_ReadUV_L();
-                        var UV_DAT_L = fTwiServer.TWI_Light_ReadUV_H();
-
-                        return string.Format("< h1 > WateringControl v0.4 </ h1 >< h2 > Sensor Data:</ h2 >< table ><thead><tr><td>Source</td><td>Name</td><td>Value</td></tr></thead><tbody><tr><td>DS1621</td><td>TEMP_H</td><td>{0}</td></tr><tr><td>DS1621</td><td>TEMP_L</td><td>{1}</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>ATmega32</td><td>Dummy</td><td{2}</td></tr><tr><td>ATmega32</td><td>Flow1</td><td>{3}</td></tr><tr><td>ATmega32</td><td>Flow2</td><td>{4}</td></tr><tr><td>ATmega32</td><td>Flow3</td><td>{5}</td></tr><tr><td>ATmega32</td><td>Flow4</td><td>{6}</td></tr><tr><td>ATmega32</td><td>Flow5</td><td>{7}</td></tr><tr><td>ATmega32</td><td>Rain_H</td><td>{8}</td></tr><tr><td>ATmega32</td><td>Rain_L</td><td>{9}</td></tr><tr><td>ATmega32</td><td>Level_H</td><td>{10}</td></tr><tr><td>ATmega32</td><td>Level_L</td><td>{11}</td></tr><tr><td>ATmega32</td><td>Rain_H</td><td>{12}</td></tr><tr><td>ATmega32</td><td>Rain_L</td><td>{13}</td></tr><tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr><tr><td>SI1145</td><td>VIS_DAT_H</td><td>{14}</td></tr><tr><td>SI1145</td><td>VIS_DAT_L</td><td>{15}</td></tr><tr><td>SI1145</td><td>IR_DAT_H</td><td>{16}</td></tr><tr><td>SI1145</td><td>IR_DAT_L</td><td>{17}</td></tr><tr><td>SI1145</td><td>UV_DAT_H</td><td>{18}</td></tr><tr><td>SI1145</td><td>UV_DAT_L</td><td>{19}</td></tr></tbody></table><p>&nbsp;</p><p><strong>Raw data online visualization.</strong></p>);",
-                                             0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, VIS_DAT_H, VIS_DAT_L, IR_DAT_H, IR_DAT_L, UV_DAT_H, UV_DAT_L);
-                    //TEMP_H, TEMP_L, Dummy, Flow1, Flow2, Flow3, Flow4, Flow5, Rain_H, Rain_L, Level_H, Level_L, Rain_H, Rain_L, VIS_DAT_H, VIS_DAT_L, IR_DAT_H, IR_DAT_L, UV_DAT_H, UV_DAT_L);
+                        return redmineRequestXML.ToString();
+                    // -------- unknown request code -   
                     default:
                         return "<html><body>---FAILURE---</body></html>";
                 }
