@@ -99,10 +99,39 @@ namespace CommunicationTest
         {
             var vASr = new byte[] { (byte)(32 + vChn) };    // 0x20 ... 0x28
             var vASa = new byte[1];
-            TWI_uController.WriteRead(vASr, vASa);
+            TWI_uController.Write(vASr);
+            TWI_uController.Read(vASa);
             return vASa[0];
         }
 
+        public int TWI_ATmega_ReadPressure()
+        {
+            var vASr = new byte[] { 0x27 };    // 0x20 ... 0x28
+            var vASa = new byte[1];
+            TWI_uController.Write(vASr);
+            TWI_uController.Read(vASa);
+            var tmp_press = (vASa[0] - 45) * 0.56;
+            return Convert.ToInt16(Math.Round(tmp_press));
+        }
+
+        public int TWI_ATmega_ReadRain()
+        {
+            var vASr = new byte[] { 0x25 };    // 0x20 ... 0x28
+            var vASa = new byte[1];
+            TWI_uController.Write(vASr);
+            TWI_uController.Read(vASa);
+            double tmp_rain = (vASa[0] / 255) * 100;
+            return Convert.ToInt16(Math.Round(tmp_rain));
+        }
+
+        public int TWI_ATmega_ReadLevel()
+        {
+            var vASr = new byte[] { 0x26 };    // 0x20 ... 0x28
+            var vASa = new byte[1];
+            TWI_uController.Write(vASr);
+            TWI_uController.Read(vASa);
+            return vASa[0];
+        }
 
         // ----- Light sensor commands
         public void TWI_Light_RegisterService() { var vLRS   = new byte[] { 0x07, 0x17 }; TWI_VisibleLight.Write(vLRS); }
@@ -110,22 +139,77 @@ namespace CommunicationTest
         public void TWI_Light_UVcoef1()         { var vLUVC1 = new byte[] { 0x14, 0x89 }; TWI_VisibleLight.Write(vLUVC1); }
         public void TWI_Light_UVcoef2()         { var vLUVC2 = new byte[] { 0x15, 0x02 }; TWI_VisibleLight.Write(vLUVC2); }
         public void TWI_Light_UVcoef3()         { var vLUVC3 = new byte[] { 0x16, 0x00 }; TWI_VisibleLight.Write(vLUVC3); }
-        public void TWI_Light_SetParam()        { var vLSP   = new byte[] { 0x17, 0xB0 }; TWI_VisibleLight.Write(vLSP); }
-        public void TWI_Light_WriteParam()      { var vLWP   = new byte[] { 0x18, 0xA1 }; TWI_VisibleLight.Write(vLWP); }
+        public void TWI_Light_SetParam_Ch()     { var vLSP   = new byte[] { 0x17, 0xB0 }; TWI_VisibleLight.Write(vLSP); }
+        public void TWI_Light_WriteParam_Ch()   { var vLWP   = new byte[] { 0x18, 0xA1 }; TWI_VisibleLight.Write(vLWP); }
+        
+        public void TWI_Light_SetParam_HV()     { var vLSP = new byte[] { 0x17, 0x20 }; TWI_VisibleLight.Write(vLSP); }
+        public void TWI_Light_WriteParam_HV()   { var vLWP = new byte[] { 0x18, 0xB2 }; TWI_VisibleLight.Write(vLWP); }
+
+        public void TWI_Light_SetParam_HI()     { var vLSP = new byte[] { 0x17, 0x20 }; TWI_VisibleLight.Write(vLSP); }
+        public void TWI_Light_WriteParam_HI()   { var vLWP = new byte[] { 0x18, 0xBF }; TWI_VisibleLight.Write(vLWP); }
+
         public void TWI_Light_StartMeas()       { var vLSM   = new byte[] { 0x18, 0x06 }; TWI_VisibleLight.Write(vLSM); }
+        
+        public int TWI_Light_ReadVis()
+        {
+            var vLVLr = new byte[] { 0x22 };
+            var vLVLa = new byte[1];
+            TWI_VisibleLight.WriteRead(vLVLr, vLVLa);
 
-        public byte TWI_Light_ReadVis_H() { var vLVHr = new byte[] { 0x22 }; var vLVHa = new byte[1]; TWI_VisibleLight.WriteRead(vLVHr, vLVHa); return vLVHa[0]; }
-        public byte TWI_Light_ReadVis_L() { var vLVLr = new byte[] { 0x23 }; var vLVLa = new byte[1]; TWI_VisibleLight.WriteRead(vLVLr, vLVLa); return vLVLa[0]; }
-        public byte TWI_Light_ReadIR_H()  { var vLIHr = new byte[] { 0x24 }; var vLIHa = new byte[1]; TWI_VisibleLight.WriteRead(vLIHr, vLIHa); return vLIHa[0]; }
-        public byte TWI_Light_ReadIR_L()  { var vLILr = new byte[] { 0x25 }; var vLILa = new byte[1]; TWI_VisibleLight.WriteRead(vLILr, vLILa); return vLILa[0]; }
-        public byte TWI_Light_ReadUV_H()  { var vLUHr = new byte[] { 0x2C }; var vLUHa = new byte[1]; TWI_VisibleLight.WriteRead(vLUHr, vLUHa); return vLUHa[0]; }
-        public byte TWI_Light_ReadUV_L()  { var vLULr = new byte[] { 0x2D }; var vLULa = new byte[1]; TWI_VisibleLight.WriteRead(vLULr, vLULa); return vLULa[0]; }
+            var vLVHr = new byte[] { 0x23 };
+            var vLVHa = new byte[1];
+            TWI_VisibleLight.WriteRead(vLVHr, vLVHa);
 
+            var vLVC = vLVHa[0] + (vLVLa[0] << 8);
+            return vLVC;
+        }
+
+        public int TWI_Light_ReadIR()
+        {
+            var vLILr = new byte[] { 0x24 };
+            var vLILa = new byte[1];
+            TWI_VisibleLight.WriteRead(vLILr, vLILa);
+
+            var vLIHr = new byte[] { 0x25 };
+            var vLIHa = new byte[1];
+            TWI_VisibleLight.WriteRead(vLIHr, vLIHa);
+
+            var vLIC = vLIHa[0] + (vLILa[0] << 8);
+            return vLIC;
+
+        }
+
+        public int TWI_Light_ReadUV()
+        {
+            var vLUHr = new byte[] { 0x2C };
+            var vLUHa = new byte[1];
+            TWI_VisibleLight.WriteRead(vLUHr, vLUHa);
+
+            var vLULr = new byte[] { 0x2D };
+            var vLULa = new byte[1];
+            TWI_VisibleLight.WriteRead(vLULr, vLULa);
+            
+            var vLUC = vLUHa[0] + (vLULa[0] << 8);
+            return vLUC;
+        }
 
         // ----- Temperature sensor commands
-        public void TWI_Temperature_Meas()  { var vTSM = new byte[] { 0xEE }; TWI_Temperature.Write(vTSM); }
-        public byte TWI_Temperature_TempH() { var vTHr = new byte[] { 0xAA }; var vTHa = new byte[2]; TWI_VisibleLight.WriteRead(vTHr, vTHa); return vTHa[0]; }
-        public byte TWI_Temperature_TempL() { var vTLr = new byte[] { 0xAA }; var vTLa = new byte[2]; TWI_VisibleLight.WriteRead(vTLr, vTLa); return vTLa[0]; }
+        public void TWI_Temperature_Start() { var vTSB = new byte[] { 0xEE }; TWI_Temperature.Write(vTSB); }
+        public void TWI_Temperature_Config(){ var vTSC = new byte[] { 0xAC, 0x02 }; TWI_Temperature.Write(vTSC); }
+        public int TWI_Temperature_Measure()
+        {
+            var vTHr = new byte[] { 0xAA };
+            var vTHa = new byte[2];
+            TWI_Temperature.WriteRead(vTHr, vTHa);
+
+            var vNeg = vTHa[0] & 0x80;
+            var vTmp = vTHa[0] & 0x7F;
+            var vTempCalc = vTmp;
+
+            if (vNeg == 1) {vTempCalc = -1 * (128 - vTmp);}
+
+            return vTempCalc;
+        }
 
     }
 
@@ -152,15 +236,15 @@ namespace CommunicationTest
             GpioPin Pin_DO7 = gpio.OpenPin(25);
             GpioPin Pin_DO8 = gpio.OpenPin(24);
 
-            Pin_DO1.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
-            Pin_DO2.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
-            Pin_DO3.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
-            Pin_DO4.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
-            Pin_DO5.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
-            Pin_DO6.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
-            Pin_DO7.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
-            Pin_DO8.SetDriveMode(GpioPinDriveMode.OutputOpenSourcePullDown);
-
+            Pin_DO1.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO2.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO3.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO4.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO5.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO6.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO7.SetDriveMode(GpioPinDriveMode.Output);
+            Pin_DO8.SetDriveMode(GpioPinDriveMode.Output);
+            
             Pin_DO1.Write(GpioPinValue.Low);
             Pin_DO2.Write(GpioPinValue.Low);
             Pin_DO3.Write(GpioPinValue.Low);
@@ -169,9 +253,12 @@ namespace CommunicationTest
             Pin_DO6.Write(GpioPinValue.Low);
             Pin_DO7.Write(GpioPinValue.Low);
             Pin_DO8.Write(GpioPinValue.Low);
-
+            
             fTwiServer = new TwiServer();
             fTwiServer.InitTWIAsync();
+
+            fTwiServer.TWI_Temperature_Config();
+            fTwiServer.TWI_Temperature_Start();
 
             // ----- INIT Light Sensor --------
             fTwiServer.TWI_Light_RegisterService();
@@ -179,8 +266,12 @@ namespace CommunicationTest
             fTwiServer.TWI_Light_UVcoef1();
             fTwiServer.TWI_Light_UVcoef2();
             fTwiServer.TWI_Light_UVcoef3();
-            fTwiServer.TWI_Light_SetParam();
-            fTwiServer.TWI_Light_WriteParam();
+            fTwiServer.TWI_Light_SetParam_Ch();
+            fTwiServer.TWI_Light_WriteParam_Ch();
+            fTwiServer.TWI_Light_SetParam_HV();
+            fTwiServer.TWI_Light_WriteParam_HV();
+            fTwiServer.TWI_Light_SetParam_HI();
+            fTwiServer.TWI_Light_WriteParam_HI();
             // --------------------------------
 
             fTcpServer = new TcpServer();
@@ -196,6 +287,15 @@ namespace CommunicationTest
                         fTwiServer.TWI_ATmega_ResetCounter();
                         return "<html><body>Command 120(reset counter) received, TWI 0x22 sent... </body></html>";
                     //------ cmd 13n = DOn -> ON  ------------------------------------
+                    case "?130":
+                        Debug.WriteLine("Command 130 received, ALL VALVES -> OPEN");
+                        Pin_DO3.Write(GpioPinValue.High);
+                        Pin_DO4.Write(GpioPinValue.High);
+                        Pin_DO5.Write(GpioPinValue.High);
+                        Pin_DO6.Write(GpioPinValue.High);
+                        Pin_DO7.Write(GpioPinValue.High);
+                        Pin_DO8.Write(GpioPinValue.High);
+                        return "<html><body>ALL VALVES -> OPEN</body></html>";
                     case "?131":
                         Debug.WriteLine("Command 131 received, DO_1 -> ON");
                         Pin_DO1.Write(GpioPinValue.High);
@@ -229,6 +329,17 @@ namespace CommunicationTest
                         Pin_DO8.Write(GpioPinValue.High);
                         return "<html><body>DO_8 -> ON</body></html>";
                     //------ cmd 14n = DOn -> OFF  ------------------------------------
+                    case "?140":
+                        Debug.WriteLine("Command 140 received, ALL -> OFF");
+                        Pin_DO1.Write(GpioPinValue.Low);
+                        Pin_DO2.Write(GpioPinValue.Low);
+                        Pin_DO3.Write(GpioPinValue.Low);
+                        Pin_DO4.Write(GpioPinValue.Low);
+                        Pin_DO5.Write(GpioPinValue.Low);
+                        Pin_DO6.Write(GpioPinValue.Low);
+                        Pin_DO7.Write(GpioPinValue.Low);
+                        Pin_DO8.Write(GpioPinValue.Low);
+                        return "<html><body>ALL -> OFF</body></html>";
                     case "?141":
                         Debug.WriteLine("Command 141 received, DO_1 -> OFF");
                         Pin_DO1.Write(GpioPinValue.Low);
@@ -261,23 +372,37 @@ namespace CommunicationTest
                         Debug.WriteLine("Command 148 received, DO_8 -> OFF");
                         Pin_DO8.Write(GpioPinValue.Low);
                         return "<html><body>DO_8 -> OFF</body></html>";
+                    //-------- cmd 121 = gather enviromental data ----------------------------------
+                    case "?121":
+                        Debug.WriteLine("Command 121 received, environmental data requested");
+                        fTwiServer.TWI_Light_StartMeas();
+                        XElement EnvDataXML =
+                            new XElement("EnvironmentalData",
+                            new XElement("Temperature", fTwiServer.TWI_Temperature_Measure()),
+                            new XElement("LightVIS", fTwiServer.TWI_Light_ReadVis()),
+                            new XElement("LightIR", fTwiServer.TWI_Light_ReadIR()),
+                            new XElement("LightUV", fTwiServer.TWI_Light_ReadUV()),
+                            new XElement("Rain", fTwiServer.TWI_ATmega_ReadRain()),
+                            new XElement("Level", fTwiServer.TWI_ATmega_ReadLevel())
+                            );
+
+                        return EnvDataXML.ToString();
                     //-------- cmd 122 = gather sensor data ----------------------------------
                     case "?122":
-                        Debug.WriteLine("Command 122 received, TWI will read");
-                        
-                        XElement redmineRequestXML =
+                        Debug.WriteLine("Command 122 received, sensors will be read");
+                        // 
+                        XElement SensDataXML =
                             new XElement("SensorData",
                             new XElement("Flow1", fTwiServer.TWI_ATmega_ReadSensor(0)),
                             new XElement("Flow2", fTwiServer.TWI_ATmega_ReadSensor(1)),
                             new XElement("Flow3", fTwiServer.TWI_ATmega_ReadSensor(2)),
                             new XElement("Flow4", fTwiServer.TWI_ATmega_ReadSensor(3)),
                             new XElement("Flow5", fTwiServer.TWI_ATmega_ReadSensor(4)),
-                            new XElement("Rain" , fTwiServer.TWI_ATmega_ReadSensor(5)),
-                            new XElement("Level", fTwiServer.TWI_ATmega_ReadSensor(6)),
-                            new XElement("Press", fTwiServer.TWI_ATmega_ReadSensor(7))
+                            new XElement("Press", fTwiServer.TWI_ATmega_ReadPressure()),
+                            new XElement("Level", fTwiServer.TWI_ATmega_ReadLevel())
                             );
 
-                        return redmineRequestXML.ToString();
+                        return SensDataXML.ToString();
                     // -------- unknown request code -   
                     default:
                         return "<html><body>---FAILURE---</body></html>";
