@@ -1,10 +1,11 @@
 ﻿<Page
-    x:Class="WateringPlantControlInterface.MainPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:local="using:WateringPlantControlInterface"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:Gauges="using:Syncfusion.UI.Xaml.Gauges"
+    x:Class="WateringPlantControlInterface.MainPage"
     mc:Ignorable="d">
 
     <Grid Background="{ThemeResource ApplicationPageBackgroundThemeBrush}" RequestedTheme="Dark">
@@ -26,18 +27,33 @@
         <TextBlock HorizontalAlignment="Right" Margin="0,327,742,0" TextWrapping="Wrap" Text="Valve #4" VerticalAlignment="Top" Height="40" FontSize="22"/>
         <TextBlock HorizontalAlignment="Right" Margin="0,367,742,0" TextWrapping="Wrap" Text="Valve #5" VerticalAlignment="Top" Height="40" FontSize="22"/>
         <TextBlock HorizontalAlignment="Right" Margin="0,407,742,273" TextWrapping="Wrap" Text="DO 8" VerticalAlignment="Center" FontSize="22" Height="40" TextAlignment="Right" Foreground="#FF9B9999"/>
-        <ProgressBar x:Name="Bar_Press" HorizontalAlignment="Left" Height="20" Margin="19,155,0,0" VerticalAlignment="Top" Width="330" RequestedTheme="Dark"/>
-        <ProgressBar x:Name="Bar_Level" HorizontalAlignment="Left" Height="20" Margin="19,216,0,0" VerticalAlignment="Top" Width="330" RequestedTheme="Dark"/>
+        <ProgressBar x:Name="Bar_Press" HorizontalAlignment="Left" Height="20" Margin="19,155,0,0" VerticalAlignment="Top" Width="330" RequestedTheme="Dark" Maximum="100"/>
+        <ProgressBar x:Name="Bar_Level" HorizontalAlignment="Left" Height="20" Margin="19,216,0,0" VerticalAlignment="Top" Width="330" RequestedTheme="Dark" Minimum="130" Maximum="215"/>
         <ProgressBar x:Name="Bar_Rain" HorizontalAlignment="Left" Height="20" Margin="19,280,0,0" VerticalAlignment="Top" Width="330" RequestedTheme="Dark"/>
         <TextBlock x:Name="Text_Press" HorizontalAlignment="Left" Margin="19,130,0,0" TextWrapping="Wrap" Text="Pressure: 0.0bar" VerticalAlignment="Top" RenderTransformOrigin="-0.493,0.312" Width="330"/>
         <TextBlock x:Name="Text_Rain" HorizontalAlignment="Left" Margin="19,255,0,0" TextWrapping="Wrap" Text="Rain: 0%" VerticalAlignment="Top" RenderTransformOrigin="-0.493,0.312" Width="330"/>
         <TextBlock x:Name="Text_Level" HorizontalAlignment="Left" Margin="19,191,0,0" TextWrapping="Wrap" Text="Tank Level: 12%" VerticalAlignment="Top" RenderTransformOrigin="-0.493,0.312" Width="330"/>
-        <TextBlock HorizontalAlignment="Right" Margin="0,365,1177,0" TextWrapping="Wrap" Text="UV Index:" VerticalAlignment="Top" Width="84" TextAlignment="Right"/>
-        <TextBlock HorizontalAlignment="Right" Margin="0,390,1177,0" TextWrapping="Wrap" Text="Visible Light:" VerticalAlignment="Top" TextAlignment="Right"/>
-        <TextBlock HorizontalAlignment="Right" Margin="0,415,1177,0" TextWrapping="Wrap" Text="IR Light:" VerticalAlignment="Top" Width="84" TextAlignment="Right"/>
-        <TextBlock x:Name="Text_UV" HorizontalAlignment="Left" Margin="108,365,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top"/>
-        <TextBlock x:Name="Text_Vis" HorizontalAlignment="Left" Margin="108,390,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top"/>
-        <TextBlock x:Name="Text_IR" HorizontalAlignment="Left" Margin="108,415,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top"/>
+        <TextBlock HorizontalAlignment="Right" Margin="0,388,1177,0" TextWrapping="Wrap" Text="UV Index:" VerticalAlignment="Top" Width="84" TextAlignment="Right"/>
+        <TextBlock HorizontalAlignment="Right" Margin="0,413,1177,0" TextWrapping="Wrap" Text="Visible Light:" VerticalAlignment="Top" TextAlignment="Right"/>
+        <TextBlock HorizontalAlignment="Right" Margin="0,438,1177,0" TextWrapping="Wrap" Text="IR Light:" VerticalAlignment="Top" Width="84" TextAlignment="Right"/>
+        <TextBlock x:Name="Text_UV" HorizontalAlignment="Left" Margin="108,388,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top"/>
+        <TextBlock x:Name="Text_Vis" HorizontalAlignment="Left" Margin="108,413,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top"/>
+        <TextBlock x:Name="Text_IR" HorizontalAlignment="Left" Margin="108,438,0,0" TextWrapping="Wrap" Text="0" VerticalAlignment="Top"/>
+        <ProgressBar x:Name="Bar_Flow1" HorizontalAlignment="Left" Height="7" Margin="671,229,0,0" VerticalAlignment="Top" Width="200"/>
+        <ProgressBar x:Name="Bar_Flow2" HorizontalAlignment="Left" Height="7" Margin="671,269,0,0" VerticalAlignment="Top" Width="200"/>
+        <ProgressBar x:Name="Bar_Flow3" HorizontalAlignment="Left" Height="7" Margin="671,309,0,0" VerticalAlignment="Top" Width="200"/>
+        <ProgressBar x:Name="Bar_Flow4" HorizontalAlignment="Left" Height="7" Margin="671,349,0,0" VerticalAlignment="Top" Width="200"/>
+        <ProgressBar x:Name="Bar_Flow5" HorizontalAlignment="Left" Height="7" Margin="671,389,0,0" VerticalAlignment="Top" Width="200"/>
+        <TextBlock x:Name="Text_Flow1" HorizontalAlignment="Left" Margin="671,208,0,0" TextWrapping="Wrap" Text="123 Pulses   =   321ml" VerticalAlignment="Top" RenderTransformOrigin="-0.493,0.312" Width="330" FontSize="12"/>
+        <TextBlock x:Name="Text_Flow2" HorizontalAlignment="Left" Margin="671,248,0,0" TextWrapping="Wrap" Text="123 Pulses   =   321ml" VerticalAlignment="Top" RenderTransformOrigin="-0.493,0.312" Width="330" FontSize="12"/>
+        <TextBlock x:Name="Text_Flow3" HorizontalAlignment="Left" Margin="671,288,0,0" TextWrapping="Wrap" Text="123 Pulses   =   321ml" VerticalAlignment="Top" RenderTransformOrigin="-0.493,0.312" Width="330" FontSize="12"/>
+        <TextBlock x:Name="Text_Flow4" HorizontalAlignment="Left" Margin="671,328,0,0" TextWrapping="Wrap" Text="123 Pulses   =   321ml" VerticalAlignment="Top" RenderTransformOrigin="-0.493,0.312" Width="330" FontSize="12"/>
+        <TextBlock x:Name="Text_Flow5" HorizontalAlignment="Left" Margin="671,368,0,0" TextWrapping="Wrap" Text="123 Pulses   =   321ml" VerticalAlignment="Top" RenderTransformOrigin="-0.493,0.312" Width="330" FontSize="12"/>
+        <TextBlock HorizontalAlignment="Right" Margin="0,347,1177,0" TextWrapping="Wrap" Text="Temperature:" VerticalAlignment="Top" Width="93" TextAlignment="Right"/>
+        <TextBlock x:Name="Text_Temp" HorizontalAlignment="Left" Margin="108,347,0,0" TextWrapping="Wrap" Text="0 degC" VerticalAlignment="Top"/>
+        <Button x:Name="Btn_AllOff" Content="All off" HorizontalAlignment="Left" Margin="562,452,0,0" VerticalAlignment="Top" Width="81" Click="Btn_AllOff_Click"/>
+        <Button x:Name="Btn_RstFlow" Content="Reset all" HorizontalAlignment="Left" Margin="671,452,0,0" VerticalAlignment="Top" Width="81" Click="Btn_RstFlow_Click"/>
+        <Button x:Name="Btn_Update" Content="Update" HorizontalAlignment="Left" Margin="38,547,0,0" VerticalAlignment="Top" Click="Btn_Update_Click"/>
 
     </Grid>
 </Page>

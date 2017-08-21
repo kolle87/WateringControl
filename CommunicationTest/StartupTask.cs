@@ -139,13 +139,13 @@ namespace CommunicationTest
         public void TWI_Light_UVcoef1()         { var vLUVC1 = new byte[] { 0x14, 0x89 }; TWI_VisibleLight.Write(vLUVC1); }
         public void TWI_Light_UVcoef2()         { var vLUVC2 = new byte[] { 0x15, 0x02 }; TWI_VisibleLight.Write(vLUVC2); }
         public void TWI_Light_UVcoef3()         { var vLUVC3 = new byte[] { 0x16, 0x00 }; TWI_VisibleLight.Write(vLUVC3); }
-        public void TWI_Light_SetParam_Ch()     { var vLSP   = new byte[] { 0x17, 0xB0 }; TWI_VisibleLight.Write(vLSP); }
+        public void TWI_Light_SetParam_Ch()     { var vLSP   = new byte[] { 0x17, 0xB0 }; TWI_VisibleLight.Write(vLSP); }       // activate the measurement channels
         public void TWI_Light_WriteParam_Ch()   { var vLWP   = new byte[] { 0x18, 0xA1 }; TWI_VisibleLight.Write(vLWP); }
         
-        public void TWI_Light_SetParam_HV()     { var vLSP = new byte[] { 0x17, 0x20 }; TWI_VisibleLight.Write(vLSP); }
+        public void TWI_Light_SetParam_HV()     { var vLSP = new byte[] { 0x17, 0x20 }; TWI_VisibleLight.Write(vLSP); }         // set the visible light ADC to high value operation
         public void TWI_Light_WriteParam_HV()   { var vLWP = new byte[] { 0x18, 0xB2 }; TWI_VisibleLight.Write(vLWP); }
 
-        public void TWI_Light_SetParam_HI()     { var vLSP = new byte[] { 0x17, 0x20 }; TWI_VisibleLight.Write(vLSP); }
+        public void TWI_Light_SetParam_HI()     { var vLSP = new byte[] { 0x17, 0x20 }; TWI_VisibleLight.Write(vLSP); }         // set the infrared light ADC to high value operation
         public void TWI_Light_WriteParam_HI()   { var vLWP = new byte[] { 0x18, 0xBF }; TWI_VisibleLight.Write(vLWP); }
 
         public void TWI_Light_StartMeas()       { var vLSM   = new byte[] { 0x18, 0x06 }; TWI_VisibleLight.Write(vLSM); }
@@ -163,7 +163,6 @@ namespace CommunicationTest
             var vLVC = vLVHa[0] + (vLVLa[0] << 8);
             return vLVC;
         }
-
         public int TWI_Light_ReadIR()
         {
             var vLILr = new byte[] { 0x24 };
@@ -178,7 +177,6 @@ namespace CommunicationTest
             return vLIC;
 
         }
-
         public int TWI_Light_ReadUV()
         {
             var vLUHr = new byte[] { 0x2C };
@@ -403,6 +401,27 @@ namespace CommunicationTest
                             );
 
                         return SensDataXML.ToString();
+                    //-------- cmd 123 = all sensor data for service tool ----------------------------------
+                    case "?123":
+                        Debug.WriteLine("Command 122 received, sensors will be read");
+                        // 
+                        XElement ServiceDataXML =
+                            new XElement("ServiceData",
+                            new XElement("Flow1", fTwiServer.TWI_ATmega_ReadSensor(0)),
+                            new XElement("Flow2", fTwiServer.TWI_ATmega_ReadSensor(1)),
+                            new XElement("Flow3", fTwiServer.TWI_ATmega_ReadSensor(2)),
+                            new XElement("Flow4", fTwiServer.TWI_ATmega_ReadSensor(3)),
+                            new XElement("Flow5", fTwiServer.TWI_ATmega_ReadSensor(4)),
+                            new XElement("Press", fTwiServer.TWI_ATmega_ReadPressure()),
+                            new XElement("Level", fTwiServer.TWI_ATmega_ReadLevel()),
+                            new XElement("Rain", fTwiServer.TWI_ATmega_ReadRain()),
+                            new XElement("Temperature", fTwiServer.TWI_Temperature_Measure()),
+                            new XElement("LightVIS", fTwiServer.TWI_Light_ReadVis()),
+                            new XElement("LightIR", fTwiServer.TWI_Light_ReadIR()),
+                            new XElement("LightUV", fTwiServer.TWI_Light_ReadUV())                            
+                            );
+
+                        return ServiceDataXML.ToString();
                     // -------- unknown request code -   
                     default:
                         return "<html><body>---FAILURE---</body></html>";
