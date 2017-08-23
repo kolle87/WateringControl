@@ -2,6 +2,7 @@
 using System.IO;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
+using System.Threading.Tasks;
 using Windows.ApplicationModel.Background;
 using Windows.Foundation.Diagnostics;
 using Windows.Networking.Sockets;
@@ -134,22 +135,81 @@ namespace CommunicationTest
         }
 
         // ----- Light sensor commands
-        public void TWI_Light_RegisterService() { var vLRS   = new byte[] { 0x07, 0x17 }; TWI_VisibleLight.Write(vLRS); }
-        public void TWI_Light_UVcoef0()         { var vLUVC0 = new byte[] { 0x13, 0x29 }; TWI_VisibleLight.Write(vLUVC0); }
-        public void TWI_Light_UVcoef1()         { var vLUVC1 = new byte[] { 0x14, 0x89 }; TWI_VisibleLight.Write(vLUVC1); }
-        public void TWI_Light_UVcoef2()         { var vLUVC2 = new byte[] { 0x15, 0x02 }; TWI_VisibleLight.Write(vLUVC2); }
-        public void TWI_Light_UVcoef3()         { var vLUVC3 = new byte[] { 0x16, 0x00 }; TWI_VisibleLight.Write(vLUVC3); }
-        public void TWI_Light_SetParam_Ch()     { var vLSP   = new byte[] { 0x17, 0xB0 }; TWI_VisibleLight.Write(vLSP); }       // activate the measurement channels
-        public void TWI_Light_WriteParam_Ch()   { var vLWP   = new byte[] { 0x18, 0xA1 }; TWI_VisibleLight.Write(vLWP); }
-        
-        public void TWI_Light_SetParam_HV()     { var vLSP = new byte[] { 0x17, 0x20 }; TWI_VisibleLight.Write(vLSP); }         // set the visible light ADC to high value operation
-        public void TWI_Light_WriteParam_HV()   { var vLWP = new byte[] { 0x18, 0xB2 }; TWI_VisibleLight.Write(vLWP); }
+        public void TWI_Light_Prepare()
+        {
+            var vReq1 = new byte[1];
+            var vReq2 = new byte[2];
+            var vRes1 = new byte[1];
+            var vRes2 = new byte[2];
 
-        public void TWI_Light_SetParam_HI()     { var vLSP = new byte[] { 0x17, 0x20 }; TWI_VisibleLight.Write(vLSP); }         // set the infrared light ADC to high value operation
-        public void TWI_Light_WriteParam_HI()   { var vLWP = new byte[] { 0x18, 0xBF }; TWI_VisibleLight.Write(vLWP); }
+            vReq1[0] = 0x18; vReq2[1] = 0x01; TWI_VisibleLight.Write(vReq2);             // Restart
 
-        public void TWI_Light_StartMeas()       { var vLSM   = new byte[] { 0x18, 0x06 }; TWI_VisibleLight.Write(vLSM); }
-        
+            var t_wait = Task.Run(async delegate { await Task.Delay(1000); });          //wait 1s
+
+            vReq1[0] = 0x02; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check Seq_ID
+            Debug.WriteLine("[Light] Seq_ID is {0}", vRes1[0]);
+
+            vReq2[0] = 0x07; vReq2[1] = 0x17; TWI_VisibleLight.Write(vReq2);             // set Sensor to normal operation mode
+            vReq1[0] = 0x07; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
+            if (vRes1[0] != 0x17) { Debug.WriteLine("[Light] 0x17 not set"); }
+
+            vReq2[0] = 0x08; vReq2[1] = 0xFF; TWI_VisibleLight.Write(vReq2);             // set measuring rate (H)
+            vReq1[0] = 0x08; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
+            if (vRes1[0] != 0xFF) { Debug.WriteLine("[Light] 0x08 not set"); }
+
+            vReq2[0] = 0x09; vReq2[1] = 0xFF; TWI_VisibleLight.Write(vReq2);             // set measuring rate (L)
+            vReq1[0] = 0x09; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
+            if (vRes1[0] != 0xFF) { Debug.WriteLine("[Light] 0x09 not set"); }
+
+            vReq2[0] = 0x13; vReq2[1] = 0x29; TWI_VisibleLight.Write(vReq2);             // set UV coeff 0
+            vReq1[0] = 0x13; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
+            if (vRes1[0] != 0x29) { Debug.WriteLine("[Light] 0x13 not set"); }
+
+            vReq2[0] = 0x14; vReq2[1] = 0x89; TWI_VisibleLight.Write(vReq2);             // set UV coeff 1
+            vReq1[0] = 0x14; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
+            if (vRes1[0] != 0x89) { Debug.WriteLine("[Light] 0x14 not set"); }
+
+            vReq2[0] = 0x15; vReq2[1] = 0x02; TWI_VisibleLight.Write(vReq2);             // set UV coeff 2
+            vReq1[0] = 0x15; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
+            if (vRes1[0] != 0x02) { Debug.WriteLine("[Light] 0x15 not set"); }
+
+            vReq2[0] = 0x16; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // set UV coeff 3
+            vReq1[0] = 0x16; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
+            if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] 0x16 not set"); }
+
+            vReq2[0] = 0x17; vReq2[1] = 0x20; TWI_VisibleLight.Write(vReq2);             // prep para - VIS high mode
+            vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
+            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
+            if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (178)"); }  // check if response reg is empty
+            vReq2[0] = 0x18; vReq2[1] = 0xB2; TWI_VisibleLight.Write(vReq2);             // write command
+            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
+            if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (181)"); }  // check if response reg is empty
+
+            vReq2[0] = 0x17; vReq2[1] = 0x20; TWI_VisibleLight.Write(vReq2);             // prep para - IR high mode
+            vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
+            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
+            if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (186)"); }  // check if response reg is empty
+            vReq2[0] = 0x18; vReq2[1] = 0xBF; TWI_VisibleLight.Write(vReq2);             // write command
+            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
+            if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (189)"); }  // check if response reg is empty	
+
+            vReq2[0] = 0x17; vReq2[1] = 0xB0; TWI_VisibleLight.Write(vReq2);             // prep para - set measuring channels
+            vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
+            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
+            if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (194)"); }  // check if response reg is empty
+            vReq2[0] = 0x18; vReq2[1] = 0xA1; TWI_VisibleLight.Write(vReq2);             // write command
+            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
+            if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (197)"); }  // check if response reg is empty
+
+            // prep para - start auto mode
+            vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
+            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
+            if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (202)"); }  // check if response reg is empty
+            vReq2[0] = 0x18; vReq2[1] = 0x0E; TWI_VisibleLight.Write(vReq2);             // write command
+            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
+            if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (205)"); }  // check if response reg is empty
+        }
+
         public int TWI_Light_ReadVis()
         {
             var vLVLr = new byte[] { 0x22 };
@@ -160,7 +220,7 @@ namespace CommunicationTest
             var vLVHa = new byte[1];
             TWI_VisibleLight.WriteRead(vLVHr, vLVHa);
 
-            var vLVC = vLVHa[0] + (vLVLa[0] << 8);
+            var vLVC = vLVLa[0] + (vLVHa[0] << 8);
             return vLVC;
         }
         public int TWI_Light_ReadIR()
@@ -173,7 +233,7 @@ namespace CommunicationTest
             var vLIHa = new byte[1];
             TWI_VisibleLight.WriteRead(vLIHr, vLIHa);
 
-            var vLIC = vLIHa[0] + (vLILa[0] << 8);
+            var vLIC = vLILa[0] + (vLIHa[0] << 8);
             return vLIC;
 
         }
@@ -187,7 +247,7 @@ namespace CommunicationTest
             var vLULa = new byte[1];
             TWI_VisibleLight.WriteRead(vLULr, vLULa);
             
-            var vLUC = vLUHa[0] + (vLULa[0] << 8);
+            var vLUC = vLULa[0] + (vLUHa[0] << 8);
             return vLUC;
         }
 
@@ -259,17 +319,7 @@ namespace CommunicationTest
             fTwiServer.TWI_Temperature_Start();
 
             // ----- INIT Light Sensor --------
-            fTwiServer.TWI_Light_RegisterService();
-            fTwiServer.TWI_Light_UVcoef0();
-            fTwiServer.TWI_Light_UVcoef1();
-            fTwiServer.TWI_Light_UVcoef2();
-            fTwiServer.TWI_Light_UVcoef3();
-            fTwiServer.TWI_Light_SetParam_Ch();
-            fTwiServer.TWI_Light_WriteParam_Ch();
-            fTwiServer.TWI_Light_SetParam_HV();
-            fTwiServer.TWI_Light_WriteParam_HV();
-            fTwiServer.TWI_Light_SetParam_HI();
-            fTwiServer.TWI_Light_WriteParam_HI();
+            fTwiServer.TWI_Light_Prepare();
             // --------------------------------
 
             fTcpServer = new TcpServer();
@@ -372,7 +422,6 @@ namespace CommunicationTest
                     //-------- cmd 121 = gather enviromental data ----------------------------------
                     case "?121":
                         Debug.WriteLine("Command 121 received, environmental data requested");
-                        fTwiServer.TWI_Light_StartMeas();
                         XElement EnvDataXML =
                             new XElement("EnvironmentalData",
                             new XElement("Level", fTwiServer.TWI_ATmega_ReadLevel()),
