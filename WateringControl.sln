@@ -7,8 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CommunicationTest", "Commun
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HTTPtest", "HTTPtest\HTTPtest.csproj", "{72E8B137-3790-4EE3-AD0E-B79A5004D0E3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WateringPlantControlInterface", "WateringPlantControlInterface\WateringPlantControlInterface.csproj", "{D8D51875-B6F4-477C-944A-12F25D21FED4}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|ARM = Debug|ARM
@@ -55,24 +53,6 @@ Global
 		{72E8B137-3790-4EE3-AD0E-B79A5004D0E3}.Release|x86.ActiveCfg = Release|x86
 		{72E8B137-3790-4EE3-AD0E-B79A5004D0E3}.Release|x86.Build.0 = Release|x86
 		{72E8B137-3790-4EE3-AD0E-B79A5004D0E3}.Release|x86.Deploy.0 = Release|x86
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Debug|ARM.ActiveCfg = Debug|ARM
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Debug|ARM.Build.0 = Debug|ARM
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Debug|ARM.Deploy.0 = Debug|ARM
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Debug|x64.ActiveCfg = Debug|x64
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Debug|x64.Build.0 = Debug|x64
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Debug|x64.Deploy.0 = Debug|x64
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Debug|x86.ActiveCfg = Debug|x86
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Debug|x86.Build.0 = Debug|x86
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Debug|x86.Deploy.0 = Debug|x86
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Release|ARM.ActiveCfg = Release|ARM
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Release|ARM.Build.0 = Release|ARM
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Release|ARM.Deploy.0 = Release|ARM
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Release|x64.ActiveCfg = Release|x64
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Release|x64.Build.0 = Release|x64
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Release|x64.Deploy.0 = Release|x64
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Release|x86.ActiveCfg = Release|x86
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Release|x86.Build.0 = Release|x86
-		{D8D51875-B6F4-477C-944A-12F25D21FED4}.Release|x86.Deploy.0 = Release|x86
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

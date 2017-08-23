@@ -38,43 +38,53 @@ namespace WateringPlantControlInterface
 
         private void Timer1_Tick(object sender, object e)
         {
-            // Update indicators
+            GetDataUpdate();
         }
 
         public async void GetDataUpdate()
         {
-            Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss.f") + " - Request Sensor Data...");
-            WebRequest W_wrGETURL = WebRequest.Create("http://192.168.1.50:8081/a?123");
+            Timer1.Stop();
+            Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss.f") + " - Request Sensor Data 1 ...");
+            WebRequest W_wrGETURL = WebRequest.Create("http://192.168.1.50:8081/a?121");
             WebResponse W_response = await W_wrGETURL.GetResponseAsync();
             Stream W_dataStream = W_response.GetResponseStream();
-            Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss.f") + " - ...Data received");
 
-            XElement SensorDataObj = XElement.Load(W_dataStream);
-            XElement xmlFlow1 = SensorDataObj.Element("Flow1");
-            XElement xmlFlow2 = SensorDataObj.Element("Flow2");
-            XElement xmlFlow3 = SensorDataObj.Element("Flow3");
-            XElement xmlFlow4 = SensorDataObj.Element("Flow4");
-            XElement xmlFlow5 = SensorDataObj.Element("Flow5");
-            XElement xmlPress = SensorDataObj.Element("Press");
-            XElement xmlLevel = SensorDataObj.Element("Level");
-            XElement xmlRain  = SensorDataObj.Element("Rain");
-            XElement xmlTemp  = SensorDataObj.Element("Temperature");
-            XElement xmlVIS   = SensorDataObj.Element("LightVIS");
-            XElement xmlIR    = SensorDataObj.Element("LightIR");
-            XElement xmlUV    = SensorDataObj.Element("LightUV");
+            XElement Sensor1DataObj = XElement.Load(W_dataStream);
+            XElement xmlTemp  = Sensor1DataObj.Element("Temperature");
+            XElement xmlVIS   = Sensor1DataObj.Element("LightVIS");
+            XElement xmlIR    = Sensor1DataObj.Element("LightIR");
+            XElement xmlUV    = Sensor1DataObj.Element("LightUV");
+            XElement xmlRain  = Sensor1DataObj.Element("Rain");
 
-            Text_Flow1.Text = string.Format("Pulses: {0}   =   {1:N0}ml", xmlFlow1.Value, (Convert.ToInt16(xmlFlow1.Value) / 91));
-            Text_Flow2.Text = string.Format("Pulses: {0}   =   {1:N0}ml", xmlFlow2.Value, (Convert.ToInt16(xmlFlow2.Value) / 91));
-            Text_Flow3.Text = string.Format("Pulses: {0}   =   {1:N0}ml", xmlFlow3.Value, (Convert.ToInt16(xmlFlow3.Value) / 91));
-            Text_Flow4.Text = string.Format("Pulses: {0}   =   {1:N0}ml", xmlFlow4.Value, (Convert.ToInt16(xmlFlow4.Value) / 91));
-            Text_Flow5.Text = string.Format("Pulses: {0}   =   {1:N0}ml", xmlFlow5.Value, (Convert.ToInt16(xmlFlow5.Value) / 91));
-            Text_Press.Text = string.Format("Pressure: {0:N0}bar"   , (Convert.ToInt16(xmlPress.Value) / 10));
-            Text_Level.Text = string.Format("Tank Level: {0}%"      , (Convert.ToInt16(xmlLevel.Value) - 130));
             Text_Rain.Text  = string.Format("Rain: {0}%"            , (Convert.ToInt16(xmlRain.Value)));
-            Text_Temp.Text  = string.Format("Temperature: {0} degC" , (Convert.ToInt16(xmlTemp.Value)));
-            Text_Vis.Text   = string.Format("Visible Light: {0}"    , (Convert.ToInt16(xmlVIS.Value)));
-            Text_IR.Text    = string.Format("IR Light: {0}"         , (Convert.ToInt16(xmlIR.Value)));
-            Text_UV.Text    = string.Format("UV Index: {0}"         , (Convert.ToInt16(xmlUV.Value)));
+            Text_Temp.Text  = string.Format("{0} °C"   , (Convert.ToInt16(xmlTemp.Value)));
+            Text_Vis.Text   = string.Format("{0:N0}" , (Convert.ToInt32(xmlVIS.Value)));
+            Text_IR.Text    = string.Format("{0:N0}"      , (Convert.ToInt32(xmlIR.Value)));
+            Text_UV.Text    = string.Format("{0}"         , (Convert.ToInt16(xmlUV.Value)));
+
+            Bar_Rain.Value  = Convert.ToInt16(xmlRain.Value);
+
+            Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss.f") + " - Request Sensor Data 2 ...");
+            WebRequest X_wrGETURL = WebRequest.Create("http://192.168.1.50:8081/a?122");
+            WebResponse X_response = await X_wrGETURL.GetResponseAsync();
+            Stream X_dataStream = X_response.GetResponseStream();
+
+            XElement Sensor2DataObj = XElement.Load(X_dataStream);
+            XElement xmlFlow1 = Sensor2DataObj.Element("Flow1");
+            XElement xmlFlow2 = Sensor2DataObj.Element("Flow2");
+            XElement xmlFlow3 = Sensor2DataObj.Element("Flow3");
+            XElement xmlFlow4 = Sensor2DataObj.Element("Flow4");
+            XElement xmlFlow5 = Sensor2DataObj.Element("Flow5");
+            XElement xmlPress = Sensor2DataObj.Element("Press");
+            XElement xmlLevel = Sensor2DataObj.Element("Level");
+
+            Text_Flow1.Text = string.Format("Pulses: {0}   =   {1:N0}ml", xmlFlow1.Value, (Convert.ToInt16(xmlFlow1.Value) / 0.91));
+            Text_Flow2.Text = string.Format("Pulses: {0}   =   {1:N0}ml", xmlFlow2.Value, (Convert.ToInt16(xmlFlow2.Value) / 0.91));
+            Text_Flow3.Text = string.Format("Pulses: {0}   =   {1:N0}ml", xmlFlow3.Value, (Convert.ToInt16(xmlFlow3.Value) / 0.91));
+            Text_Flow4.Text = string.Format("Pulses: {0}   =   {1:N0}ml", xmlFlow4.Value, (Convert.ToInt16(xmlFlow4.Value) / 0.91));
+            Text_Flow5.Text = string.Format("Pulses: {0}   =   {1:N0}ml", xmlFlow5.Value, (Convert.ToInt16(xmlFlow5.Value) / 0.91));
+            Text_Press.Text = string.Format("Pressure: {0:N0}bar", (Convert.ToInt16(xmlPress.Value) / 10));
+            Text_Level.Text = string.Format("Tank Level: {0}%", (Convert.ToInt16(xmlLevel.Value) - 130));
 
             Bar_Flow1.Value = Convert.ToInt16(xmlFlow1.Value);
             Bar_Flow2.Value = Convert.ToInt16(xmlFlow2.Value);
@@ -83,14 +93,14 @@ namespace WateringPlantControlInterface
             Bar_Flow5.Value = Convert.ToInt16(xmlFlow5.Value);
             Bar_Press.Value = Convert.ToInt16(xmlPress.Value);
             Bar_Level.Value = Convert.ToInt16(xmlLevel.Value);
-            Bar_Rain.Value  = Convert.ToInt16(xmlRain.Value);
 
+            Timer1.Start();
         }
 
         public MainPage()
         {
             this.InitializeComponent();
-            Timer1.Interval = new TimeSpan(0, 0, 0, 1, 0);
+            Timer1.Interval = new TimeSpan(0, 0, 0, 2, 0);
             Timer1.Tick += Timer1_Tick;
         }
 

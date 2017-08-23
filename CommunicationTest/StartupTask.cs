@@ -283,7 +283,7 @@ namespace CommunicationTest
                     case "?120":
                         Debug.WriteLine("Command 120 received, ATmega counter reset");
                         fTwiServer.TWI_ATmega_ResetCounter();
-                        return "<html><body>Command 120(reset counter) received, TWI 0x22 sent... </body></html>";
+                        return "CMD_120: counter reset";
                     //------ cmd 13n = DOn -> ON  ------------------------------------
                     case "?130":
                         Debug.WriteLine("Command 130 received, ALL VALVES -> OPEN");
@@ -292,40 +292,39 @@ namespace CommunicationTest
                         Pin_DO5.Write(GpioPinValue.High);
                         Pin_DO6.Write(GpioPinValue.High);
                         Pin_DO7.Write(GpioPinValue.High);
-                        Pin_DO8.Write(GpioPinValue.High);
-                        return "<html><body>ALL VALVES -> OPEN</body></html>";
+                        return "CMD_130: ALL VALVES -> OPEN";
                     case "?131":
                         Debug.WriteLine("Command 131 received, DO_1 -> ON");
                         Pin_DO1.Write(GpioPinValue.High);
-                        return "<html><body>DO_1 -> ON</body></html>";
+                        return "CMD_131: DO_1 -> ON";
                     case "?132":
                         Debug.WriteLine("Command 132 received, DO_2 -> ON");
                         Pin_DO2.Write(GpioPinValue.High);
-                        return "<html><body>DO_2 -> ON</body></html>";
+                        return "CMD_132: DO_2 -> ON";
                     case "?133":
                         Debug.WriteLine("Command 133 received, DO_3 -> ON");
                         Pin_DO3.Write(GpioPinValue.High);
-                        return "<html><body>DO_3 -> ON</body></html>";
+                        return "CMD_133: DO_3 -> ON";
                     case "?134":
                         Debug.WriteLine("Command 134 received, DO_4 -> ON");
                         Pin_DO4.Write(GpioPinValue.High);
-                        return "<html><body>DO_4 -> ON</body></html>";
+                        return "CMD_134: DO_4 -> ON";
                     case "?135":
                         Debug.WriteLine("Command 135 received, DO_5 -> ON");
                         Pin_DO5.Write(GpioPinValue.High);
-                        return "<html><body>DO_5 -> ON</body></html>";
+                        return "CMD_135: DO_5 -> ON";
                     case "?136":
                         Debug.WriteLine("Command 136 received, DO_6 -> ON");
                         Pin_DO6.Write(GpioPinValue.High);
-                        return "<html><body>DO_6 -> ON</body></html>";
+                        return "CMD_136: DO_6 -> ON";
                     case "?137":
                         Debug.WriteLine("Command 137 received, DO_7 -> ON");
                         Pin_DO7.Write(GpioPinValue.High);
-                        return "<html><body>DO_7 -> ON</body></html>";
+                        return "CMD_137: DO_7 -> ON";
                     case "?138":
                         Debug.WriteLine("Command 138 received, DO_8 -> ON");
                         Pin_DO8.Write(GpioPinValue.High);
-                        return "<html><body>DO_8 -> ON</body></html>";
+                        return "CMD_138: DO_8 -> ON";
                     //------ cmd 14n = DOn -> OFF  ------------------------------------
                     case "?140":
                         Debug.WriteLine("Command 140 received, ALL -> OFF");
@@ -337,57 +336,57 @@ namespace CommunicationTest
                         Pin_DO6.Write(GpioPinValue.Low);
                         Pin_DO7.Write(GpioPinValue.Low);
                         Pin_DO8.Write(GpioPinValue.Low);
-                        return "<html><body>ALL -> OFF</body></html>";
+                        return "CMD_140: ALL -> OFF";
                     case "?141":
                         Debug.WriteLine("Command 141 received, DO_1 -> OFF");
                         Pin_DO1.Write(GpioPinValue.Low);
-                        return "<html><body>DO_1 -> OFF</body></html>";
+                        return "CMD_141: DO_1 -> OFF";
                     case "?142":
                         Debug.WriteLine("Command 142 received, DO_2 -> OFF");
                         Pin_DO2.Write(GpioPinValue.Low);
-                        return "<html><body>DO_2 -> OFF</body></html>";
+                        return "CMD_142: DO_2 -> OFF";
                     case "?143":
                         Debug.WriteLine("Command 143 received, DO_3 -> OFF");
                         Pin_DO3.Write(GpioPinValue.Low);
-                        return "<html><body>DO_3 -> OFF</body></html>";
+                        return "CMD_143: DO_3 -> OFF";
                     case "?144":
                         Debug.WriteLine("Command 144 received, DO_4 -> OFF");
                         Pin_DO4.Write(GpioPinValue.Low);
-                        return "<html><body>DO_4 -> OFF</body></html>";
+                        return "CMD_144: DO_4 -> OFF";
                     case "?145":
                         Debug.WriteLine("Command 145 received, DO_5 -> OFF");
                         Pin_DO5.Write(GpioPinValue.Low);
-                        return "<html><body>DO_5 -> OFF</body></html>";
+                        return "CMD_145: DO_5 -> OFF";
                     case "?146":
                         Debug.WriteLine("Command 146 received, DO_6 -> OFF");
                         Pin_DO6.Write(GpioPinValue.Low);
-                        return "<html><body>DO_6 -> OFF</body></html>";
+                        return "CMD_146: DO_6 -> OFF";
                     case "?147":
                         Debug.WriteLine("Command 147 received, DO_7 -> OFF");
                         Pin_DO7.Write(GpioPinValue.Low);
-                        return "<html><body>DO_7 -> OFF</body></html>";
+                        return "CMD_147: DO_7 -> OFF";
                     case "?148":
                         Debug.WriteLine("Command 148 received, DO_8 -> OFF");
                         Pin_DO8.Write(GpioPinValue.Low);
-                        return "<html><body>DO_8 -> OFF</body></html>";
+                        return "CMD_148: DO_8 -> OFF";
                     //-------- cmd 121 = gather enviromental data ----------------------------------
                     case "?121":
                         Debug.WriteLine("Command 121 received, environmental data requested");
                         fTwiServer.TWI_Light_StartMeas();
                         XElement EnvDataXML =
                             new XElement("EnvironmentalData",
-                            new XElement("Temperature", fTwiServer.TWI_Temperature_Measure()),
-                            new XElement("LightVIS", fTwiServer.TWI_Light_ReadVis()),
+                            new XElement("Level", fTwiServer.TWI_ATmega_ReadLevel()),
                             new XElement("LightIR", fTwiServer.TWI_Light_ReadIR()),
+                            new XElement("LightVIS", fTwiServer.TWI_Light_ReadVis()),
+                            new XElement("Temperature", fTwiServer.TWI_Temperature_Measure()),
                             new XElement("LightUV", fTwiServer.TWI_Light_ReadUV()),
-                            new XElement("Rain", fTwiServer.TWI_ATmega_ReadRain()),
-                            new XElement("Level", fTwiServer.TWI_ATmega_ReadLevel())
+                            new XElement("Rain", fTwiServer.TWI_ATmega_ReadRain())
                             );
 
                         return EnvDataXML.ToString();
                     //-------- cmd 122 = gather sensor data ----------------------------------
                     case "?122":
-                        Debug.WriteLine("Command 122 received, sensors will be read");
+                        Debug.WriteLine("Command 122 received, sensors data requested");
                         // 
                         XElement SensDataXML =
                             new XElement("SensorData",
@@ -396,35 +395,30 @@ namespace CommunicationTest
                             new XElement("Flow3", fTwiServer.TWI_ATmega_ReadSensor(2)),
                             new XElement("Flow4", fTwiServer.TWI_ATmega_ReadSensor(3)),
                             new XElement("Flow5", fTwiServer.TWI_ATmega_ReadSensor(4)),
-                            new XElement("Press", fTwiServer.TWI_ATmega_ReadPressure()),
-                            new XElement("Level", fTwiServer.TWI_ATmega_ReadLevel())
+                            new XElement("Press", fTwiServer.TWI_ATmega_ReadPressure())
                             );
 
                         return SensDataXML.ToString();
                     //-------- cmd 123 = all sensor data for service tool ----------------------------------
                     case "?123":
-                        Debug.WriteLine("Command 122 received, sensors will be read");
+                        Debug.WriteLine("Command 123 received, GPIO states reaquested");
                         // 
                         XElement ServiceDataXML =
-                            new XElement("ServiceData",
-                            new XElement("Flow1", fTwiServer.TWI_ATmega_ReadSensor(0)),
-                            new XElement("Flow2", fTwiServer.TWI_ATmega_ReadSensor(1)),
-                            new XElement("Flow3", fTwiServer.TWI_ATmega_ReadSensor(2)),
-                            new XElement("Flow4", fTwiServer.TWI_ATmega_ReadSensor(3)),
-                            new XElement("Flow5", fTwiServer.TWI_ATmega_ReadSensor(4)),
-                            new XElement("Press", fTwiServer.TWI_ATmega_ReadPressure()),
-                            new XElement("Level", fTwiServer.TWI_ATmega_ReadLevel()),
-                            new XElement("Rain", fTwiServer.TWI_ATmega_ReadRain()),
-                            new XElement("Temperature", fTwiServer.TWI_Temperature_Measure()),
-                            new XElement("LightVIS", fTwiServer.TWI_Light_ReadVis()),
-                            new XElement("LightIR", fTwiServer.TWI_Light_ReadIR()),
-                            new XElement("LightUV", fTwiServer.TWI_Light_ReadUV())                            
+                            new XElement("GPIO_States",
+                            new XElement("DO1", Pin_DO1.Read()),
+                            new XElement("DO2", Pin_DO2.Read()),
+                            new XElement("DO3", Pin_DO3.Read()),
+                            new XElement("DO4", Pin_DO4.Read()),
+                            new XElement("DO5", Pin_DO5.Read()),
+                            new XElement("DO6", Pin_DO6.Read()),
+                            new XElement("DO7", Pin_DO7.Read()),
+                            new XElement("DO8", Pin_DO8.Read())                                                      
                             );
 
                         return ServiceDataXML.ToString();
                     // -------- unknown request code -   
                     default:
-                        return "<html><body>---FAILURE---</body></html>";
+                        return "FAILURE_UNKNOWN";
                 }
                 ;
             };
