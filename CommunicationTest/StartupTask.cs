@@ -1,8 +1,10 @@
 ﻿using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Runtime.InteropServices.WindowsRuntime;
 using System.Text;
 using System.Threading.Tasks;
+using System.Threading;
 using Windows.ApplicationModel.Background;
 using Windows.Foundation.Diagnostics;
 using Windows.Networking.Sockets;
@@ -86,11 +88,11 @@ namespace CommunicationTest
             TWI_Temperature = controller.GetDevice(settings1);
             TWI_uController = controller.GetDevice(settings2);
             TWI_VisibleLight = controller.GetDevice(settings3);
-            if (TWI_Temperature == null)  { Debug.WriteLine("TWI_Temperature: FAILURE WHILE INIT");  return; }
-            if (TWI_uController == null)  { Debug.WriteLine("TWI_uController: FAILURE WHILE INIT");  return; }
+            if (TWI_Temperature == null) { Debug.WriteLine("TWI_Temperature: FAILURE WHILE INIT"); return; }
+            if (TWI_uController == null) { Debug.WriteLine("TWI_uController: FAILURE WHILE INIT"); return; }
             if (TWI_VisibleLight == null) { Debug.WriteLine("TWI_VisibleLight: FAILURE WHILE INIT"); return; }
-            TWI_Temperature.ConnectionSettings.SharingMode  = I2cSharingMode.Shared;
-            TWI_uController.ConnectionSettings.SharingMode  = I2cSharingMode.Shared;
+            TWI_Temperature.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
+            TWI_uController.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
             TWI_VisibleLight.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
         }
 
@@ -179,35 +181,55 @@ namespace CommunicationTest
 
             vReq2[0] = 0x17; vReq2[1] = 0x20; TWI_VisibleLight.Write(vReq2);             // prep para - VIS high mode
             vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
+            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
             vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
             if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (178)"); }  // check if response reg is empty
             vReq2[0] = 0x18; vReq2[1] = 0xB2; TWI_VisibleLight.Write(vReq2);             // write command
+            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
             vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
             if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (181)"); }  // check if response reg is empty
 
             vReq2[0] = 0x17; vReq2[1] = 0x20; TWI_VisibleLight.Write(vReq2);             // prep para - IR high mode
             vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
+            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
             vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
             if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (186)"); }  // check if response reg is empty
             vReq2[0] = 0x18; vReq2[1] = 0xBF; TWI_VisibleLight.Write(vReq2);             // write command
+            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
             vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
             if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (189)"); }  // check if response reg is empty	
 
             vReq2[0] = 0x17; vReq2[1] = 0xB0; TWI_VisibleLight.Write(vReq2);             // prep para - set measuring channels
             vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
+            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
             vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
             if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (194)"); }  // check if response reg is empty
             vReq2[0] = 0x18; vReq2[1] = 0xA1; TWI_VisibleLight.Write(vReq2);             // write command
+            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
             vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
             if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (197)"); }  // check if response reg is empty
 
             // prep para - start auto mode
             vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
+            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
             vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
             if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (202)"); }  // check if response reg is empty
             vReq2[0] = 0x18; vReq2[1] = 0x0E; TWI_VisibleLight.Write(vReq2);             // write command
+            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
             vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
-            if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (205)"); }  // check if response reg is empty
+            if (vRes1[0] == 0x00)
+            {
+                Debug.WriteLine("[Light] command write failed (205)");   // check if response reg is empty
+                Debug.WriteLine("[Light] repeating command");
+                vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
+                t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
+                vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
+                if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (225)"); }  // check if response reg is empty
+                vReq2[0] = 0x18; vReq2[1] = 0x0E; TWI_VisibleLight.Write(vReq2);             // write command
+                t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
+                vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
+                if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (229)"); }
+            }
         }
 
         public int TWI_Light_ReadVis()
@@ -239,21 +261,21 @@ namespace CommunicationTest
         }
         public int TWI_Light_ReadUV()
         {
-            var vLUHr = new byte[] { 0x2C };
+            var vLULr = new byte[] { 0x2C };
+            var vLULa = new byte[1];
+            TWI_VisibleLight.WriteRead(vLULr, vLULa);
+
+            var vLUHr = new byte[] { 0x2D };
             var vLUHa = new byte[1];
             TWI_VisibleLight.WriteRead(vLUHr, vLUHa);
 
-            var vLULr = new byte[] { 0x2D };
-            var vLULa = new byte[1];
-            TWI_VisibleLight.WriteRead(vLULr, vLULa);
-            
             var vLUC = vLULa[0] + (vLUHa[0] << 8);
             return vLUC;
         }
 
         // ----- Temperature sensor commands
         public void TWI_Temperature_Start() { var vTSB = new byte[] { 0xEE }; TWI_Temperature.Write(vTSB); }
-        public void TWI_Temperature_Config(){ var vTSC = new byte[] { 0xAC, 0x02 }; TWI_Temperature.Write(vTSC); }
+        public void TWI_Temperature_Config() { var vTSC = new byte[] { 0xAC, 0x02 }; TWI_Temperature.Write(vTSC); }
         public int TWI_Temperature_Measure()
         {
             var vTHr = new byte[] { 0xAA };
@@ -264,35 +286,35 @@ namespace CommunicationTest
             var vTmp = vTHa[0] & 0x7F;
             var vTempCalc = vTmp;
 
-            if (vNeg == 1) {vTempCalc = -1 * (128 - vTmp);}
+            if (vNeg == 1) { vTempCalc = -1 * (128 - vTmp); }
 
             return vTempCalc;
         }
 
     }
-
-
-    public sealed class StartupTask : IBackgroundTask
+    public sealed class GpioServer
     {
-        private BackgroundTaskDeferral fDef;
-        private TcpServer fTcpServer;
-        private TwiServer fTwiServer;
-        public void Run(IBackgroundTaskInstance taskInstance)
+        private GpioPin Pin_DO1;
+        private GpioPin Pin_DO2;
+        private GpioPin Pin_DO3;
+        private GpioPin Pin_DO4;
+        private GpioPin Pin_DO5;
+        private GpioPin Pin_DO6;
+        private GpioPin Pin_DO7;
+        private GpioPin Pin_DO8;
+        public void InitGPIO()
         {
-            fDef = taskInstance.GetDeferral();          // get deferral to keep running
-
-            // ----- configure GPIOs -----------
             GpioController gpio = GpioController.GetDefault();
             if (gpio == null) { Debug.WriteLine("GPIO initialisation FAILURE"); }
 
-            GpioPin Pin_DO1 = gpio.OpenPin(21);
-            GpioPin Pin_DO2 = gpio.OpenPin(20);
-            GpioPin Pin_DO3 = gpio.OpenPin(16);
-            GpioPin Pin_DO4 = gpio.OpenPin(12);
-            GpioPin Pin_DO5 = gpio.OpenPin(7);
-            GpioPin Pin_DO6 = gpio.OpenPin(8);
-            GpioPin Pin_DO7 = gpio.OpenPin(25);
-            GpioPin Pin_DO8 = gpio.OpenPin(24);
+            Pin_DO1 = gpio.OpenPin(21);
+            Pin_DO2 = gpio.OpenPin(20);
+            Pin_DO3 = gpio.OpenPin(16);
+            Pin_DO4 = gpio.OpenPin(12);
+            Pin_DO5 = gpio.OpenPin(7);
+            Pin_DO6 = gpio.OpenPin(8);
+            Pin_DO7 = gpio.OpenPin(25);
+            Pin_DO8 = gpio.OpenPin(24);
 
             Pin_DO1.SetDriveMode(GpioPinDriveMode.Output);
             Pin_DO2.SetDriveMode(GpioPinDriveMode.Output);
@@ -311,7 +333,135 @@ namespace CommunicationTest
             Pin_DO6.Write(GpioPinValue.Low);
             Pin_DO7.Write(GpioPinValue.Low);
             Pin_DO8.Write(GpioPinValue.Low);
+        }
+        public bool GetPinState(byte vPin)
+        {
+            switch (vPin)
+            {
+                case 1: if (Pin_DO1.Read() == GpioPinValue.High) { return true; } else { return false; }
+                case 2: if (Pin_DO2.Read() == GpioPinValue.High) { return true; } else { return false; }
+                case 3: if (Pin_DO3.Read() == GpioPinValue.High) { return true; } else { return false; }
+                case 4: if (Pin_DO4.Read() == GpioPinValue.High) { return true; } else { return false; }
+                case 5: if (Pin_DO5.Read() == GpioPinValue.High) { return true; } else { return false; }
+                case 6: if (Pin_DO6.Read() == GpioPinValue.High) { return true; } else { return false; }
+                case 7: if (Pin_DO7.Read() == GpioPinValue.High) { return true; } else { return false; }
+                case 8: if (Pin_DO8.Read() == GpioPinValue.High) { return true; } else { return false; }
+                default: return false;
+            }
+        }
+        public void SetPinState(byte vPin, bool vValue)
+        {
+            switch (vPin)
+            {
+                case 1: if (vValue) { Pin_DO1.Write(GpioPinValue.High); break; } else { Pin_DO1.Write(GpioPinValue.Low); break; }
+                case 2: if (vValue) { Pin_DO2.Write(GpioPinValue.High); break; } else { Pin_DO2.Write(GpioPinValue.Low); break; }
+                case 3: if (vValue) { Pin_DO3.Write(GpioPinValue.High); break; } else { Pin_DO3.Write(GpioPinValue.Low); break; }
+                case 4: if (vValue) { Pin_DO4.Write(GpioPinValue.High); break; } else { Pin_DO4.Write(GpioPinValue.Low); break; }
+                case 5: if (vValue) { Pin_DO5.Write(GpioPinValue.High); break; } else { Pin_DO5.Write(GpioPinValue.Low); break; }
+                case 6: if (vValue) { Pin_DO6.Write(GpioPinValue.High); break; } else { Pin_DO6.Write(GpioPinValue.Low); break; }
+                case 7: if (vValue) { Pin_DO7.Write(GpioPinValue.High); break; } else { Pin_DO7.Write(GpioPinValue.Low); break; }
+                case 8: if (vValue) { Pin_DO8.Write(GpioPinValue.High); break; } else { Pin_DO8.Write(GpioPinValue.Low); break; }
+                default: { break; }
+            }
+        }
+    }
+
+        
+
+    public sealed class StartupTask : IBackgroundTask
+    {
+        private Timer LogTimer;
+        private Timer SaveLogTimer;
+        List<string> LogDataList = new List<string>();
+
+        private void LogTimer_Tick(Object stateInfo)
+        {
+            LogDataList.Add(Convert.ToString(DateTime.Now) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_Light_ReadIR()) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_Light_ReadVis()) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_Light_ReadUV()) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_Temperature_Measure()) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadLevel()) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadRain()) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadPressure()) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(0)) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(1)) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(2)) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(3)) + ";" +
+                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(4)) + ";" +
+                                            Convert.ToString(fGpioServer.GetPinState(1)) + ";" +
+                                            Convert.ToString(fGpioServer.GetPinState(2)) + ";" +
+                                            Convert.ToString(fGpioServer.GetPinState(3)) + ";" +
+                                            Convert.ToString(fGpioServer.GetPinState(4)) + ";" +
+                                            Convert.ToString(fGpioServer.GetPinState(5)) + ";" +
+                                            Convert.ToString(fGpioServer.GetPinState(6)) + ";" +
+                                            Convert.ToString(fGpioServer.GetPinState(7)) + ";" +
+                                            Convert.ToString(fGpioServer.GetPinState(8)) + ";"
+                                            );
+        }
+        private void SaveLogTimer_Tick(Object stateInfo)
+        {
+            SaveLogList(true);
+        }
+        private void PrepareLogList()
+        {
+            LogDataList.Clear();
+            LogDataList.Add("DateTime;" +
+                        "LightIR;" +
+                        "LightVis;" +
+                        "LightUV;" +
+                        "Temperature;" +
+                        "Level;" +
+                        "Rain;" +
+                        "Pressure;" +
+                        "Flow1;" +
+                        "Flow2" +
+                        "Flow3;" +
+                        "Flow4;" +
+                        "Flow5;" +
+                        "DO1;" +
+                        "DO2;" +
+                        "DO3;" +
+                        "DO4;" +
+                        "DO5;" +
+                        "DO6;" +
+                        "DO7;" +
+                        "DO8;");
+        }
+        private void SaveLogList(bool clear)
+        {
+            try
+            {
+                //LogTimer.Stop();
+                String vFilename = String.Format(@"C:\DataLogFiles\{0}_{1}_{2}_DataLog.txt", DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day);
+                System.IO.File.WriteAllText(vFilename, LogDataList.ToString());
+                if (clear) { PrepareLogList(); }
+            }
+            catch (Exception e)
+            {
+                Debug.WriteLine("Failed to save LogList. (" + e.Message + ")");
+            }
+            finally
+            {
+                //LogTimer.Start();
+                Debug.WriteLine("LogList saved.");
+            }
+        }
+        private BackgroundTaskDeferral fDef;
+        private TcpServer fTcpServer;
+        private TwiServer fTwiServer;
+        private GpioServer fGpioServer;
+
+        
+
+        public void Run(IBackgroundTaskInstance taskInstance)
+        {
+                     
+            this.LogTimer = new Timer(this.LogTimer_Tick, null, 0, 1000);
+            this.SaveLogTimer = new Timer(this.SaveLogTimer_Tick, null, 0, 86400000);
             
+            fDef = taskInstance.GetDeferral();          // get deferral to keep running
+
             fTwiServer = new TwiServer();
             fTwiServer.InitTWIAsync();
 
@@ -322,6 +472,20 @@ namespace CommunicationTest
             fTwiServer.TWI_Light_Prepare();
             // --------------------------------
 
+            fGpioServer = new GpioServer();
+            fGpioServer.InitGPIO();
+
+            PrepareLogList();
+
+            /*
+            this.LogTimer.Interval = new TimeSpan(0, 0, 0, 1, 0);
+            this.LogTimer.Tick += this.LogTimer_Tick;
+            this.LogTimer.Start();
+
+            this.SaveLogTimer.Interval = new TimeSpan(1, 0, 0, 0, 0);
+            this.SaveLogTimer.Tick += this.SaveLogTimer_Tick;
+            this.SaveLogTimer.Start();
+            */
             fTcpServer = new TcpServer();
             fTcpServer.RequestReceived = (request) =>
             {
@@ -337,87 +501,87 @@ namespace CommunicationTest
                     //------ cmd 13n = DOn -> ON  ------------------------------------
                     case "?130":
                         Debug.WriteLine("Command 130 received, ALL VALVES -> OPEN");
-                        Pin_DO3.Write(GpioPinValue.High);
-                        Pin_DO4.Write(GpioPinValue.High);
-                        Pin_DO5.Write(GpioPinValue.High);
-                        Pin_DO6.Write(GpioPinValue.High);
-                        Pin_DO7.Write(GpioPinValue.High);
+                        fGpioServer.SetPinState(3, true);
+                        fGpioServer.SetPinState(4, true);
+                        fGpioServer.SetPinState(5, true);
+                        fGpioServer.SetPinState(6, true);
+                        fGpioServer.SetPinState(7, true);
                         return "CMD_130: ALL VALVES -> OPEN";
                     case "?131":
                         Debug.WriteLine("Command 131 received, DO_1 -> ON");
-                        Pin_DO1.Write(GpioPinValue.High);
+                        fGpioServer.SetPinState(1, true);
                         return "CMD_131: DO_1 -> ON";
                     case "?132":
                         Debug.WriteLine("Command 132 received, DO_2 -> ON");
-                        Pin_DO2.Write(GpioPinValue.High);
+                        fGpioServer.SetPinState(2, true);
                         return "CMD_132: DO_2 -> ON";
                     case "?133":
                         Debug.WriteLine("Command 133 received, DO_3 -> ON");
-                        Pin_DO3.Write(GpioPinValue.High);
+                        fGpioServer.SetPinState(3, true);
                         return "CMD_133: DO_3 -> ON";
                     case "?134":
                         Debug.WriteLine("Command 134 received, DO_4 -> ON");
-                        Pin_DO4.Write(GpioPinValue.High);
+                        fGpioServer.SetPinState(4, true);
                         return "CMD_134: DO_4 -> ON";
                     case "?135":
                         Debug.WriteLine("Command 135 received, DO_5 -> ON");
-                        Pin_DO5.Write(GpioPinValue.High);
+                        fGpioServer.SetPinState(5, true);
                         return "CMD_135: DO_5 -> ON";
                     case "?136":
                         Debug.WriteLine("Command 136 received, DO_6 -> ON");
-                        Pin_DO6.Write(GpioPinValue.High);
+                        fGpioServer.SetPinState(6, true);
                         return "CMD_136: DO_6 -> ON";
                     case "?137":
                         Debug.WriteLine("Command 137 received, DO_7 -> ON");
-                        Pin_DO7.Write(GpioPinValue.High);
+                        fGpioServer.SetPinState(7, true);
                         return "CMD_137: DO_7 -> ON";
                     case "?138":
                         Debug.WriteLine("Command 138 received, DO_8 -> ON");
-                        Pin_DO8.Write(GpioPinValue.High);
+                        fGpioServer.SetPinState(8, true);
                         return "CMD_138: DO_8 -> ON";
                     //------ cmd 14n = DOn -> OFF  ------------------------------------
                     case "?140":
                         Debug.WriteLine("Command 140 received, ALL -> OFF");
-                        Pin_DO1.Write(GpioPinValue.Low);
-                        Pin_DO2.Write(GpioPinValue.Low);
-                        Pin_DO3.Write(GpioPinValue.Low);
-                        Pin_DO4.Write(GpioPinValue.Low);
-                        Pin_DO5.Write(GpioPinValue.Low);
-                        Pin_DO6.Write(GpioPinValue.Low);
-                        Pin_DO7.Write(GpioPinValue.Low);
-                        Pin_DO8.Write(GpioPinValue.Low);
+                        fGpioServer.SetPinState(1, false);
+                        fGpioServer.SetPinState(2, false);
+                        fGpioServer.SetPinState(3, false);
+                        fGpioServer.SetPinState(4, false);
+                        fGpioServer.SetPinState(5, false);
+                        fGpioServer.SetPinState(6, false);
+                        fGpioServer.SetPinState(7, false);
+                        fGpioServer.SetPinState(8, false);
                         return "CMD_140: ALL -> OFF";
                     case "?141":
                         Debug.WriteLine("Command 141 received, DO_1 -> OFF");
-                        Pin_DO1.Write(GpioPinValue.Low);
+                        fGpioServer.SetPinState(1, false);
                         return "CMD_141: DO_1 -> OFF";
                     case "?142":
                         Debug.WriteLine("Command 142 received, DO_2 -> OFF");
-                        Pin_DO2.Write(GpioPinValue.Low);
+                        fGpioServer.SetPinState(2, false);
                         return "CMD_142: DO_2 -> OFF";
                     case "?143":
                         Debug.WriteLine("Command 143 received, DO_3 -> OFF");
-                        Pin_DO3.Write(GpioPinValue.Low);
+                        fGpioServer.SetPinState(3, false);
                         return "CMD_143: DO_3 -> OFF";
                     case "?144":
                         Debug.WriteLine("Command 144 received, DO_4 -> OFF");
-                        Pin_DO4.Write(GpioPinValue.Low);
+                        fGpioServer.SetPinState(4, false);
                         return "CMD_144: DO_4 -> OFF";
                     case "?145":
                         Debug.WriteLine("Command 145 received, DO_5 -> OFF");
-                        Pin_DO5.Write(GpioPinValue.Low);
+                        fGpioServer.SetPinState(5, false);
                         return "CMD_145: DO_5 -> OFF";
                     case "?146":
                         Debug.WriteLine("Command 146 received, DO_6 -> OFF");
-                        Pin_DO6.Write(GpioPinValue.Low);
+                        fGpioServer.SetPinState(6, false);
                         return "CMD_146: DO_6 -> OFF";
                     case "?147":
                         Debug.WriteLine("Command 147 received, DO_7 -> OFF");
-                        Pin_DO7.Write(GpioPinValue.Low);
+                        fGpioServer.SetPinState(7, false);
                         return "CMD_147: DO_7 -> OFF";
                     case "?148":
                         Debug.WriteLine("Command 148 received, DO_8 -> OFF");
-                        Pin_DO8.Write(GpioPinValue.Low);
+                        fGpioServer.SetPinState(8, false);
                         return "CMD_148: DO_8 -> OFF";
                     //-------- cmd 121 = gather enviromental data ----------------------------------
                     case "?121":
@@ -454,18 +618,23 @@ namespace CommunicationTest
                         // 
                         XElement ServiceDataXML =
                             new XElement("GPIO_States",
-                            new XElement("DO1", Pin_DO1.Read()),
-                            new XElement("DO2", Pin_DO2.Read()),
-                            new XElement("DO3", Pin_DO3.Read()),
-                            new XElement("DO4", Pin_DO4.Read()),
-                            new XElement("DO5", Pin_DO5.Read()),
-                            new XElement("DO6", Pin_DO6.Read()),
-                            new XElement("DO7", Pin_DO7.Read()),
-                            new XElement("DO8", Pin_DO8.Read())                                                      
+                            new XElement("DO1", fGpioServer.GetPinState(1)),
+                            new XElement("DO2", fGpioServer.GetPinState(2)),
+                            new XElement("DO3", fGpioServer.GetPinState(3)),
+                            new XElement("DO4", fGpioServer.GetPinState(4)),
+                            new XElement("DO5", fGpioServer.GetPinState(5)),
+                            new XElement("DO6", fGpioServer.GetPinState(6)),
+                            new XElement("DO7", fGpioServer.GetPinState(7)),
+                            new XElement("DO8", fGpioServer.GetPinState(8))                                                      
                             );
 
                         return ServiceDataXML.ToString();
-                    // -------- unknown request code -   
+                    
+                    case "?190":
+                        Debug.WriteLine("Command 190 received, LogData will be saved");
+                        SaveLogList(false);
+                        return LogDataList.ToString();
+                    // -------- unknown request code - 
                     default:
                         return "FAILURE_UNKNOWN";
                 }
