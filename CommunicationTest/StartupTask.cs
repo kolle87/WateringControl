@@ -1,21 +1,22 @@
 ﻿using System;
 using System.IO;
+using System.Text;
+using System.Diagnostics;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Xml.Linq;
 using System.Collections.Generic;
 using System.Runtime.InteropServices.WindowsRuntime;
-using System.Text;
-using System.Threading.Tasks;
-using System.Threading;
-using Windows.ApplicationModel.Background;
-using Windows.Foundation.Diagnostics;
-using Windows.Networking.Sockets;
-using Windows.Storage.Streams;
-using Windows.Devices.Enumeration;
 using Windows.Devices.I2c;
-using System.Diagnostics;
 using Windows.Devices.Gpio;
-using System.Xml.Linq;
-
-// The Background Application template is documented at http://go.microsoft.com/fwlink/?LinkID=533884&clcid=0x409
+using Windows.Devices.Enumeration;
+using Windows.Storage.Streams;
+using Windows.Networking.Sockets;
+using Windows.Foundation.Diagnostics;
+using Windows.ApplicationModel.Background;
+using Dropbox.Api;
+using Dropbox.Api.Users;
+using Dropbox.Api.Files;
 
 namespace CommunicationTest
 {
@@ -26,11 +27,11 @@ namespace CommunicationTest
         private const uint BUFFER_SIZE = 8192;
         public TcpRequestReceived RequestReceived { get; set; }
         public TcpServer() { }
-        public void Initialise(int port)
+        public async void Initialise(int port)
         {
-            fListener = new StreamSocketListener();
-            fListener.BindServiceNameAsync(port.ToString());
-            fListener.ConnectionReceived += async (sender, args) =>
+            this.fListener = new StreamSocketListener();
+            await this.fListener.BindServiceNameAsync(port.ToString());
+            this.fListener.ConnectionReceived += (sender, args) =>
             {
                 HandleRequest(sender, args);
             };
@@ -76,224 +77,491 @@ namespace CommunicationTest
         private I2cDevice TWI_Temperature;  // 0x48
         private I2cDevice TWI_uController;  // 0x56
         private I2cDevice TWI_VisibleLight; // 0x60
+        private I2cConnectionSettings settings1;
+        private I2cConnectionSettings settings2;
+        private I2cConnectionSettings settings3;
+        private I2cController controller;
+        private Boolean TWI_ATmega_Available;
+        private Boolean TWI_LightSensor_Available;
+        private Boolean TWI_Temperature_Available;
+        public  StartupTask vParent { get; set; }
 
         public async void InitTWIAsync()
         {
-            Debug.WriteLine("TWI Interface: Start initialisation...");
-            var settings1 = new I2cConnectionSettings(0x48) { BusSpeed = I2cBusSpeed.FastMode };   // Temperature Sensor
-            var settings2 = new I2cConnectionSettings(0x56) { BusSpeed = I2cBusSpeed.FastMode };   // ATmega uController
-            var settings3 = new I2cConnectionSettings(0x60) { BusSpeed = I2cBusSpeed.FastMode };   // Visible Light Sensor
-            var controller = await I2cController.GetDefaultAsync();                                // Create an I2cDevice with our selected bus controller and I2C settings
+            vParent.DebugLog("[TWI]","Start initialisation");
 
-            TWI_Temperature = controller.GetDevice(settings1);
-            TWI_uController = controller.GetDevice(settings2);
-            TWI_VisibleLight = controller.GetDevice(settings3);
-            if (TWI_Temperature == null) { Debug.WriteLine("TWI_Temperature: FAILURE WHILE INIT"); return; }
-            if (TWI_uController == null) { Debug.WriteLine("TWI_uController: FAILURE WHILE INIT"); return; }
-            if (TWI_VisibleLight == null) { Debug.WriteLine("TWI_VisibleLight: FAILURE WHILE INIT"); return; }
-            TWI_Temperature.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
-            TWI_uController.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
-            TWI_VisibleLight.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
+            try
+            {
+                this.controller = await I2cController.GetDefaultAsync(); // Create an I2cDevice with our selected bus controller and I2C settings
+
+                try
+                {
+                    this.settings1 = new I2cConnectionSettings(0x48) { BusSpeed = I2cBusSpeed.FastMode };   // Temperature Sensor
+                    this.TWI_Temperature = this.controller.GetDevice(settings1);
+                    if (this.TWI_Temperature == null)
+                    {
+                        vParent.DebugLog("[Temp]","Device could not be assigned");
+                        TWI_Temperature_Available = false;
+                    }
+                    else
+                    {
+                        this.TWI_Temperature.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
+                        TWI_Temperature_Available = true;
+                    }
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[Temp]","FAILURE WHILE INIT");
+                    vParent.DebugLog("[Temp]", e.Message);
+                }
+
+                try
+                {
+                    this.settings2 = new I2cConnectionSettings(0x56) { BusSpeed = I2cBusSpeed.FastMode };   // ATmega uController
+                    this.TWI_uController = this.controller.GetDevice(settings2);
+                    if (this.TWI_uController == null)
+                    {
+                        vParent.DebugLog("[ATmega]", "Device could not be assigned");
+                        TWI_ATmega_Available = false;
+                    }
+                    else
+                    {
+                        this.TWI_uController.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
+                        TWI_ATmega_Available = true;
+                    }
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[ATmega] FAILURE WHILE INIT ({0})", e.Message);
+                }
+
+                try
+                {
+                    this.settings3 = new I2cConnectionSettings(0x60) { BusSpeed = I2cBusSpeed.FastMode };   // Visible Light Sensor
+                    this.TWI_VisibleLight = this.controller.GetDevice(settings3);
+                    if (this.TWI_VisibleLight == null)
+                    {
+                        vParent.DebugLog("[Light]","Device could not be assigned");
+                        TWI_LightSensor_Available = false;
+                    }
+                    else
+                    {
+                        this.TWI_VisibleLight.ConnectionSettings.SharingMode = I2cSharingMode.Shared;
+                        TWI_LightSensor_Available = true;
+                    }
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[Light]","FAILURE WHILE INIT");
+                    vParent.DebugLog("[Light]", e.Message);
+                }
+            }
+            catch (Exception e)
+            {
+                vParent.DebugLog("[TWI]", "Controller could not be assigned");
+                vParent.DebugLog("[TWI]", e.Message);
+            }
         }
 
         // ----- ATmega Commands
-        public void TWI_ATmega_ResetCounter() { var vARC = new byte[] { 0x40 }; TWI_uController.Write(vARC); }
+        public void TWI_ATmega_ResetCounter()
+        {
+            if (TWI_ATmega_Available)
+            {
+                try
+                {
+                    var vARC = new byte[] { 0x40 };
+                    this.TWI_uController.Write(vARC);
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[AVR]","Write Failure");
+                    vParent.DebugLog("[AVR]", e.Message);
+                }
+
+            }
+            else
+            {
+                vParent.DebugLog("[AVR]", "Slave not available");
+            }
+        }
         public byte TWI_ATmega_ReadSensor(byte vChn)
         {
-            var vASr = new byte[] { (byte)(32 + vChn) };    // 0x20 ... 0x28
-            var vASa = new byte[1];
-            TWI_uController.Write(vASr);
-            TWI_uController.Read(vASa);
-            return vASa[0];
+            if (TWI_ATmega_Available)
+            {
+                try
+                {
+                    var vASr = new byte[] { (byte)(32 + vChn) };    // 0x20 ... 0x28
+                    var vASa = new byte[1];
+                    this.TWI_uController.Write(vASr);
+                    this.TWI_uController.Read(vASa);
+                    return vASa[0];
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[AVR]", "Write/Read Failure");
+                    vParent.DebugLog("[AVR]", e.Message);
+                    return 255;
+                }
+            }
+            else
+            {
+                vParent.DebugLog("[AVR]", "Slave not available");
+                return 255;
+            }
         }
-
         public int TWI_ATmega_ReadPressure()
         {
-            var vASr = new byte[] { 0x27 };    // 0x20 ... 0x28
-            var vASa = new byte[1];
-            TWI_uController.Write(vASr);
-            TWI_uController.Read(vASa);
-            var tmp_press = (vASa[0] - 45) * 0.56;
-            return Convert.ToInt16(Math.Round(tmp_press));
+            if (TWI_ATmega_Available)
+            {
+                try
+                {
+                    var vASr = new byte[] { 0x27 };    // 0x20 ... 0x28
+                    var vASa = new byte[1];
+                    this.TWI_uController.Write(vASr);
+                    this.TWI_uController.Read(vASa);
+                    var tmp_press = (vASa[0] - 45) * 0.56;
+                    return Convert.ToInt16(Math.Round(tmp_press));
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[AVR]", "Write/Read Failure");
+                    vParent.DebugLog("[AVR]", e.Message);
+                    return 255;
+                }
+            }
+            else
+            {
+                vParent.DebugLog("[AVR]", "Slave not available");
+                return 255;
+            }
         }
-
         public int TWI_ATmega_ReadRain()
         {
-            var vASr = new byte[] { 0x25 };    // 0x20 ... 0x28
-            var vASa = new byte[1];
-            TWI_uController.Write(vASr);
-            TWI_uController.Read(vASa);
-            double tmp_rain = (vASa[0] / 255) * 100;
-            return Convert.ToInt16(Math.Round(tmp_rain));
+            if (TWI_ATmega_Available)
+            {
+                try
+                {
+                    var vASr = new byte[] { 0x25 };    // 0x20 ... 0x28
+                    var vASa = new byte[1];
+                    this.TWI_uController.Write(vASr);
+                    this.TWI_uController.Read(vASa);
+                    double tmp_rain = (vASa[0] / 255) * 100;
+                    return Convert.ToInt16(Math.Round(tmp_rain));
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[AVR]", "Write/Read Failure");
+                    vParent.DebugLog("[AVR]", e.Message);
+                    return 255;
+                }
+            }
+            else
+            {
+                vParent.DebugLog("[AVR]", "Slave not available");
+                return 255;
+            }
         }
-
         public int TWI_ATmega_ReadLevel()
         {
-            var vASr = new byte[] { 0x26 };    // 0x20 ... 0x28
-            var vASa = new byte[1];
-            TWI_uController.Write(vASr);
-            TWI_uController.Read(vASa);
-            return vASa[0];
+            if (TWI_ATmega_Available)
+            {
+                try
+                {
+                    var vASr = new byte[] { 0x26 };    // 0x20 ... 0x28
+                    var vASa = new byte[1];
+                    this.TWI_uController.Write(vASr);
+                    this.TWI_uController.Read(vASa);
+                    return vASa[0];
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[AVR]", "Write/Read Failure");
+                    vParent.DebugLog("[AVR]", e.Message);
+                    return 255;
+                }
+            }
+            else
+            {
+                vParent.DebugLog("[AVR]", "Slave not available");
+                return 255;
+            }
         }
 
         // ----- Light sensor commands
         public void TWI_Light_Prepare()
         {
-            var vReq1 = new byte[1];
-            var vReq2 = new byte[2];
-            var vRes1 = new byte[1];
-            var vRes2 = new byte[2];
-
-            vReq1[0] = 0x18; vReq2[1] = 0x01; TWI_VisibleLight.Write(vReq2);             // Restart
-
-            var t_wait = Task.Run(async delegate { await Task.Delay(1000); });          //wait 1s
-
-            vReq1[0] = 0x02; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check Seq_ID
-            Debug.WriteLine("[Light] Seq_ID is {0}", vRes1[0]);
-
-            vReq2[0] = 0x07; vReq2[1] = 0x17; TWI_VisibleLight.Write(vReq2);             // set Sensor to normal operation mode
-            vReq1[0] = 0x07; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
-            if (vRes1[0] != 0x17) { Debug.WriteLine("[Light] 0x17 not set"); }
-
-            vReq2[0] = 0x08; vReq2[1] = 0xFF; TWI_VisibleLight.Write(vReq2);             // set measuring rate (H)
-            vReq1[0] = 0x08; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
-            if (vRes1[0] != 0xFF) { Debug.WriteLine("[Light] 0x08 not set"); }
-
-            vReq2[0] = 0x09; vReq2[1] = 0xFF; TWI_VisibleLight.Write(vReq2);             // set measuring rate (L)
-            vReq1[0] = 0x09; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
-            if (vRes1[0] != 0xFF) { Debug.WriteLine("[Light] 0x09 not set"); }
-
-            vReq2[0] = 0x13; vReq2[1] = 0x29; TWI_VisibleLight.Write(vReq2);             // set UV coeff 0
-            vReq1[0] = 0x13; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
-            if (vRes1[0] != 0x29) { Debug.WriteLine("[Light] 0x13 not set"); }
-
-            vReq2[0] = 0x14; vReq2[1] = 0x89; TWI_VisibleLight.Write(vReq2);             // set UV coeff 1
-            vReq1[0] = 0x14; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
-            if (vRes1[0] != 0x89) { Debug.WriteLine("[Light] 0x14 not set"); }
-
-            vReq2[0] = 0x15; vReq2[1] = 0x02; TWI_VisibleLight.Write(vReq2);             // set UV coeff 2
-            vReq1[0] = 0x15; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
-            if (vRes1[0] != 0x02) { Debug.WriteLine("[Light] 0x15 not set"); }
-
-            vReq2[0] = 0x16; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // set UV coeff 3
-            vReq1[0] = 0x16; TWI_VisibleLight.WriteRead(vReq1, vRes1);  // check if register was written
-            if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] 0x16 not set"); }
-
-            vReq2[0] = 0x17; vReq2[1] = 0x20; TWI_VisibleLight.Write(vReq2);             // prep para - VIS high mode
-            vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
-            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
-            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
-            if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (178)"); }  // check if response reg is empty
-            vReq2[0] = 0x18; vReq2[1] = 0xB2; TWI_VisibleLight.Write(vReq2);             // write command
-            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
-            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
-            if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (181)"); }  // check if response reg is empty
-
-            vReq2[0] = 0x17; vReq2[1] = 0x20; TWI_VisibleLight.Write(vReq2);             // prep para - IR high mode
-            vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
-            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
-            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
-            if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (186)"); }  // check if response reg is empty
-            vReq2[0] = 0x18; vReq2[1] = 0xBF; TWI_VisibleLight.Write(vReq2);             // write command
-            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
-            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
-            if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (189)"); }  // check if response reg is empty	
-
-            vReq2[0] = 0x17; vReq2[1] = 0xB0; TWI_VisibleLight.Write(vReq2);             // prep para - set measuring channels
-            vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
-            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
-            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
-            if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (194)"); }  // check if response reg is empty
-            vReq2[0] = 0x18; vReq2[1] = 0xA1; TWI_VisibleLight.Write(vReq2);             // write command
-            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
-            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
-            if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (197)"); }  // check if response reg is empty
-
-            // prep para - start auto mode
-            vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
-            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
-            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
-            if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (202)"); }  // check if response reg is empty
-            vReq2[0] = 0x18; vReq2[1] = 0x0E; TWI_VisibleLight.Write(vReq2);             // write command
-            t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
-            vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
-            if (vRes1[0] == 0x00)
+            if (TWI_LightSensor_Available)
             {
-                Debug.WriteLine("[Light] command write failed (205)");   // check if response reg is empty
-                Debug.WriteLine("[Light] repeating command");
-                vReq2[0] = 0x18; vReq2[1] = 0x00; TWI_VisibleLight.Write(vReq2);             // reset response register
-                t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
-                vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
-                if (vRes1[0] != 0x00) { Debug.WriteLine("[Light] response clear failed (225)"); }  // check if response reg is empty
-                vReq2[0] = 0x18; vReq2[1] = 0x0E; TWI_VisibleLight.Write(vReq2);             // write command
-                t_wait = Task.Run(async delegate { await Task.Delay(100); });          //wait 100ms
-                vReq1[0] = 0x20; TWI_VisibleLight.WriteRead(vReq1, vRes1);        // read response register
-                if (vRes1[0] == 0x00) { Debug.WriteLine("[Light] command write failed (229)"); }
+                try
+                {
+                    var vReq1 = new byte[1];
+                    var vReq2 = new byte[2];
+                    var vRes1 = new byte[1];
+                    var vRes2 = new byte[2];
+
+                    vReq1[0] = 0x18; vReq2[1] = 0x01; this.TWI_VisibleLight.Write(vReq2);                   // Restart            
+                    var t_wait = Task.Run(async delegate { await Task.Delay(1000); }); t_wait.Wait();       // wait 1s            
+                    vReq1[0] = 0x02; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // check Seq_ID
+                    vParent.DebugLog("[LUM]",String.Format("Seq_ID is {0}", vRes1[0]));
+
+                    vReq2[0] = 0x07; vReq2[1] = 0x17; this.TWI_VisibleLight.Write(vReq2);                   // set Sensor to normal operation mode
+                    vReq1[0] = 0x07; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // check if register was written
+                    if (vRes1[0] != 0x17) { vParent.DebugLog("[LUM]","0x17 not set"); }
+
+                    vReq2[0] = 0x08; vReq2[1] = 0xFF; this.TWI_VisibleLight.Write(vReq2);                   // set measuring rate (H)
+                    vReq1[0] = 0x08; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // check if register was written
+                    if (vRes1[0] != 0xFF) { vParent.DebugLog("[LUM]","0x08 not set"); }
+
+                    vReq2[0] = 0x09; vReq2[1] = 0xFF; this.TWI_VisibleLight.Write(vReq2);                   // set measuring rate (L)
+                    vReq1[0] = 0x09; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // check if register was written
+                    if (vRes1[0] != 0xFF) { vParent.DebugLog("[LUM]","0x09 not set"); }
+
+                    vReq2[0] = 0x13; vReq2[1] = 0x29; this.TWI_VisibleLight.Write(vReq2);                   // set UV coeff 0
+                    vReq1[0] = 0x13; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // check if register was written
+                    if (vRes1[0] != 0x29) { vParent.DebugLog("[LUM]","0x13 not set"); }
+
+                    vReq2[0] = 0x14; vReq2[1] = 0x89; this.TWI_VisibleLight.Write(vReq2);                   // set UV coeff 1
+                    vReq1[0] = 0x14; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // check if register was written
+                    if (vRes1[0] != 0x89) { vParent.DebugLog("[LUM]","0x14 not set"); }
+
+                    vReq2[0] = 0x15; vReq2[1] = 0x02; this.TWI_VisibleLight.Write(vReq2);                   // set UV coeff 2
+                    vReq1[0] = 0x15; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // check if register was written
+                    if (vRes1[0] != 0x02) { vParent.DebugLog("[LUM]","0x15 not set"); }
+
+                    vReq2[0] = 0x16; vReq2[1] = 0x00; this.TWI_VisibleLight.Write(vReq2);                   // set UV coeff 3
+                    vReq1[0] = 0x16; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // check if register was written
+                    if (vRes1[0] != 0x00) { vParent.DebugLog("[LUM]","0x16 not set"); }
+
+                    vReq2[0] = 0x17; vReq2[1] = 0x20; this.TWI_VisibleLight.Write(vReq2);                   // prep para - VIS high mode
+                    vReq2[0] = 0x18; vReq2[1] = 0x00; this.TWI_VisibleLight.Write(vReq2);                   // reset response register
+                    t_wait = Task.Run(async delegate { await Task.Delay(100); }); t_wait.Wait();            // wait 100ms
+                    vReq1[0] = 0x20; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // read response register
+                    if (vRes1[0] != 0x00) { vParent.DebugLog("[LUM]","response clear failed (178)"); }       // check if response reg is empty
+                    vReq2[0] = 0x18; vReq2[1] = 0xB2; this.TWI_VisibleLight.Write(vReq2);                   // write command
+                    t_wait = Task.Run(async delegate { await Task.Delay(100); }); t_wait.Wait();            // wait 100ms
+                    vReq1[0] = 0x20; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // read response register
+                    if (vRes1[0] == 0x00) { vParent.DebugLog("[LUM]","command write failed (181)"); }        // check if response reg is empty
+
+                    vReq2[0] = 0x17; vReq2[1] = 0x20; this.TWI_VisibleLight.Write(vReq2);                   // prep para - IR high mode
+                    vReq2[0] = 0x18; vReq2[1] = 0x00; this.TWI_VisibleLight.Write(vReq2);                   // reset response register
+                    t_wait = Task.Run(async delegate { await Task.Delay(100); }); t_wait.Wait();            // wait 100ms
+                    vReq1[0] = 0x20; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // read response register
+                    if (vRes1[0] != 0x00) { vParent.DebugLog("[LUM]","response clear failed (186)"); }       // check if response reg is empty
+                    vReq2[0] = 0x18; vReq2[1] = 0xBF; this.TWI_VisibleLight.Write(vReq2);                   // write command
+                    t_wait = Task.Run(async delegate { await Task.Delay(100); }); t_wait.Wait();            // wait 100ms
+                    vReq1[0] = 0x20; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // read response register
+                    if (vRes1[0] == 0x00) { vParent.DebugLog("[LUM],","command write failed (189)"); }        // check if response reg is empty	
+
+                    vReq2[0] = 0x17; vReq2[1] = 0xB0; this.TWI_VisibleLight.Write(vReq2);                   // prep para - set measuring channels
+                    vReq2[0] = 0x18; vReq2[1] = 0x00; this.TWI_VisibleLight.Write(vReq2);                   // reset response register
+                    t_wait = Task.Run(async delegate { await Task.Delay(100); }); t_wait.Wait();            // wait 100ms
+                    vReq1[0] = 0x20; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // read response register
+                    if (vRes1[0] != 0x00) { vParent.DebugLog("[LUM]","response clear failed (194)"); }       // check if response reg is empty
+                    vReq2[0] = 0x18; vReq2[1] = 0xA1; this.TWI_VisibleLight.Write(vReq2);                   // write command
+                    t_wait = Task.Run(async delegate { await Task.Delay(100); }); t_wait.Wait();            // wait 100ms
+                    vReq1[0] = 0x20; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // read response register
+                    if (vRes1[0] == 0x00) { vParent.DebugLog("[LUM]","command write failed (197)"); }        // check if response reg is empty
+
+                    // prep para - start auto mode
+                    vReq2[0] = 0x18; vReq2[1] = 0x00; this.TWI_VisibleLight.Write(vReq2);                   // reset response register
+                    t_wait = Task.Run(async delegate { await Task.Delay(100); }); t_wait.Wait();            // wait 100ms
+                    vReq1[0] = 0x20; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // read response register
+                    if (vRes1[0] != 0x00) { vParent.DebugLog("[LUM]","response clear failed (202)"); }       // check if response reg is empty
+                    vReq2[0] = 0x18; vReq2[1] = 0x0E; this.TWI_VisibleLight.Write(vReq2);                   // write command
+                    t_wait = Task.Run(async delegate { await Task.Delay(100); }); t_wait.Wait();            // wait 100ms
+                    vReq1[0] = 0x20; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                         // read response register
+                    if (vRes1[0] == 0x00)
+                    {
+                        vParent.DebugLog("[LUM]","command write failed (205)");                              // check if response reg is empty
+                        vParent.DebugLog("[LUM]","repeating command");
+                        vReq2[0] = 0x18; vReq2[1] = 0x00; this.TWI_VisibleLight.Write(vReq2);               // reset response register
+                        t_wait = Task.Run(async delegate { await Task.Delay(100); }); t_wait.Wait();        // wait 100ms
+                        vReq1[0] = 0x20; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                     // read response register
+                        if (vRes1[0] != 0x00) { vParent.DebugLog("[LUM]","response clear failed (225)"); }   // check if response reg is empty
+                        vReq2[0] = 0x18; vReq2[1] = 0x0E; this.TWI_VisibleLight.Write(vReq2);               // write command
+                        t_wait = Task.Run(async delegate { await Task.Delay(100); }); t_wait.Wait();        // wait 100ms
+                        vReq1[0] = 0x20; this.TWI_VisibleLight.WriteRead(vReq1, vRes1);                     // read response register
+                        if (vRes1[0] == 0x00) { vParent.DebugLog("[LUM]","command write failed (229)"); }
+                    }
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[LUM]","Write/Read Failure ({0})");
+                    vParent.DebugLog("[LUM]", e.Message);
+                }
+            }
+            else
+            {
+                vParent.DebugLog("[LUM]", "Slave not available");
             }
         }
-
         public int TWI_Light_ReadVis()
         {
-            var vLVLr = new byte[] { 0x22 };
-            var vLVLa = new byte[1];
-            TWI_VisibleLight.WriteRead(vLVLr, vLVLa);
+            if (TWI_LightSensor_Available)
+            {
+                try
+                {
+                    var vLVLr = new byte[] { 0x22 };
+                    var vLVLa = new byte[1];
+                    this.TWI_VisibleLight.WriteRead(vLVLr, vLVLa);
 
-            var vLVHr = new byte[] { 0x23 };
-            var vLVHa = new byte[1];
-            TWI_VisibleLight.WriteRead(vLVHr, vLVHa);
+                    var vLVHr = new byte[] { 0x23 };
+                    var vLVHa = new byte[1];
+                    this.TWI_VisibleLight.WriteRead(vLVHr, vLVHa);
 
-            var vLVC = vLVLa[0] + (vLVHa[0] << 8);
-            return vLVC;
+                    var vLVC = vLVLa[0] + (vLVHa[0] << 8);
+                    return vLVC;
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[LUM]", "Write/Read Failure");
+                    vParent.DebugLog("[LUM]", e.Message);
+                    return 255;
+                }
+            }
+            else
+            {
+                vParent.DebugLog("[LUM]", "Slave not available");
+                return 255;
+            }
         }
         public int TWI_Light_ReadIR()
         {
-            var vLILr = new byte[] { 0x24 };
-            var vLILa = new byte[1];
-            TWI_VisibleLight.WriteRead(vLILr, vLILa);
+            if (TWI_LightSensor_Available)
+            {
+                try
+                {
+                    var vLILr = new byte[] { 0x24 };
+                    var vLILa = new byte[1];
+                    this.TWI_VisibleLight.WriteRead(vLILr, vLILa);
 
-            var vLIHr = new byte[] { 0x25 };
-            var vLIHa = new byte[1];
-            TWI_VisibleLight.WriteRead(vLIHr, vLIHa);
+                    var vLIHr = new byte[] { 0x25 };
+                    var vLIHa = new byte[1];
+                    this.TWI_VisibleLight.WriteRead(vLIHr, vLIHa);
 
-            var vLIC = vLILa[0] + (vLIHa[0] << 8);
-            return vLIC;
-
+                    var vLIC = vLILa[0] + (vLIHa[0] << 8);
+                    return vLIC;
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[LUM]", "Write/Read Failure ({0})");
+                    vParent.DebugLog("[LUM]", e.Message);
+                    return 255;
+                }
+            }
+            else
+            {
+                vParent.DebugLog("[LUM]", "Slave not available");
+                return 255;
+            }
         }
         public int TWI_Light_ReadUV()
         {
-            var vLULr = new byte[] { 0x2C };
-            var vLULa = new byte[1];
-            TWI_VisibleLight.WriteRead(vLULr, vLULa);
+            if (TWI_LightSensor_Available)
+            {
+                try
+                {
+                    var vLULr = new byte[] { 0x2C };
+                    var vLULa = new byte[1];
+                    this.TWI_VisibleLight.WriteRead(vLULr, vLULa);
 
-            var vLUHr = new byte[] { 0x2D };
-            var vLUHa = new byte[1];
-            TWI_VisibleLight.WriteRead(vLUHr, vLUHa);
+                    var vLUHr = new byte[] { 0x2D };
+                    var vLUHa = new byte[1];
+                    this.TWI_VisibleLight.WriteRead(vLUHr, vLUHa);
 
-            var vLUC = vLULa[0] + (vLUHa[0] << 8);
-            return vLUC;
+                    var vLUC = vLULa[0] + (vLUHa[0] << 8);
+                    return vLUC;
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[LUM]", "Write/Read Failure");
+                    vParent.DebugLog("[LUM]", e.Message);
+                    return 255;
+                }
+            }
+            else
+            {
+                vParent.DebugLog("[LUM]", "Slave not available");
+                return 255;
+            }
         }
 
         // ----- Temperature sensor commands
-        public void TWI_Temperature_Start() { var vTSB = new byte[] { 0xEE }; TWI_Temperature.Write(vTSB); }
-        public void TWI_Temperature_Config() { var vTSC = new byte[] { 0xAC, 0x02 }; TWI_Temperature.Write(vTSC); }
+        public void TWI_Temperature_Start()
+        {
+            if (TWI_Temperature_Available)
+            {
+                try
+                {
+                    var vTSB = new byte[] { 0xEE };
+                     this.TWI_Temperature.Write(vTSB);
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[TMP]","Write/Read Failure");
+                    vParent.DebugLog("[TMP]", e.Message);
+                }
+            }
+            else
+            {
+                vParent.DebugLog("[TMP]", "Slave not available");
+            }
+        }
+        public void TWI_Temperature_Config()
+        {
+            if (TWI_Temperature_Available)
+            {
+                try
+                {
+                    var vTSC = new byte[] { 0xAC, 0x02 };
+                    this.TWI_Temperature.Write(vTSC);
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[TMP]", "Write/Read Failure");
+                    vParent.DebugLog("[TMP]", e.Message);
+                }
+            }
+            else
+            {
+                vParent.DebugLog("[TMP]", "Slave not available");
+            }
+        }
         public int TWI_Temperature_Measure()
         {
-            var vTHr = new byte[] { 0xAA };
-            var vTHa = new byte[2];
-            TWI_Temperature.WriteRead(vTHr, vTHa);
+            if (TWI_Temperature_Available)
+            {
+                try
+                {
+                    var vTHr = new byte[] { 0xAA };
+                    var vTHa = new byte[2];
+                    this.TWI_Temperature.WriteRead(vTHr, vTHa);
 
-            var vNeg = vTHa[0] & 0x80;
-            var vTmp = vTHa[0] & 0x7F;
-            var vTempCalc = vTmp;
+                    var vNeg = vTHa[0] & 0x80;
+                    var vTmp = vTHa[0] & 0x7F;
+                    var vTempCalc = vTmp;
 
-            if (vNeg == 1) { vTempCalc = -1 * (128 - vTmp); }
+                    if (vNeg == 1) { vTempCalc = -1 * (128 - vTmp); }
 
-            return vTempCalc;
+                    return vTempCalc;
+                }
+                catch (Exception e)
+                {
+                    vParent.DebugLog("[TMP]", "Write/Read Failure");
+                    vParent.DebugLog("[TMP]", e.Message);
+                    return 255;
+                }
+            }
+            else
+            {
+                vParent.DebugLog("[TMP]", "Slave not available");
+                return 255;
+            }
         }
-
     }
     public sealed class GpioServer
-    {
+    { 
         private GpioPin Pin_DO1;
         private GpioPin Pin_DO2;
         private GpioPin Pin_DO3;
@@ -302,167 +570,268 @@ namespace CommunicationTest
         private GpioPin Pin_DO6;
         private GpioPin Pin_DO7;
         private GpioPin Pin_DO8;
+        private GpioController gpio;
+        public  StartupTask vParent { get; set; }
+
         public void InitGPIO()
         {
-            GpioController gpio = GpioController.GetDefault();
-            if (gpio == null) { Debug.WriteLine("GPIO initialisation FAILURE"); }
+            vParent.DebugLog("[GIO]","Starting GPIO Service");
+            try
+            {
+                this.gpio = GpioController.GetDefault();
+                if (this.gpio != null)
+                {
+                
+                    this.Pin_DO1 = this.gpio.OpenPin(21);
+                    this.Pin_DO2 = this.gpio.OpenPin(20);
+                    this.Pin_DO3 = this.gpio.OpenPin(16);
+                    this.Pin_DO4 = this.gpio.OpenPin(12);
+                    this.Pin_DO5 = this.gpio.OpenPin(7);
+                    this.Pin_DO6 = this.gpio.OpenPin(8);
+                    this.Pin_DO7 = this.gpio.OpenPin(25);
+                    this.Pin_DO8 = this.gpio.OpenPin(24);
 
-            Pin_DO1 = gpio.OpenPin(21);
-            Pin_DO2 = gpio.OpenPin(20);
-            Pin_DO3 = gpio.OpenPin(16);
-            Pin_DO4 = gpio.OpenPin(12);
-            Pin_DO5 = gpio.OpenPin(7);
-            Pin_DO6 = gpio.OpenPin(8);
-            Pin_DO7 = gpio.OpenPin(25);
-            Pin_DO8 = gpio.OpenPin(24);
+                    this.Pin_DO1.SetDriveMode(GpioPinDriveMode.Output);
+                    this.Pin_DO2.SetDriveMode(GpioPinDriveMode.Output);
+                    this.Pin_DO3.SetDriveMode(GpioPinDriveMode.Output);
+                    this.Pin_DO4.SetDriveMode(GpioPinDriveMode.Output);
+                    this.Pin_DO5.SetDriveMode(GpioPinDriveMode.Output);
+                    this.Pin_DO6.SetDriveMode(GpioPinDriveMode.Output);
+                    this.Pin_DO7.SetDriveMode(GpioPinDriveMode.Output);
+                    this.Pin_DO8.SetDriveMode(GpioPinDriveMode.Output);
 
-            Pin_DO1.SetDriveMode(GpioPinDriveMode.Output);
-            Pin_DO2.SetDriveMode(GpioPinDriveMode.Output);
-            Pin_DO3.SetDriveMode(GpioPinDriveMode.Output);
-            Pin_DO4.SetDriveMode(GpioPinDriveMode.Output);
-            Pin_DO5.SetDriveMode(GpioPinDriveMode.Output);
-            Pin_DO6.SetDriveMode(GpioPinDriveMode.Output);
-            Pin_DO7.SetDriveMode(GpioPinDriveMode.Output);
-            Pin_DO8.SetDriveMode(GpioPinDriveMode.Output);
-            
-            Pin_DO1.Write(GpioPinValue.Low);
-            Pin_DO2.Write(GpioPinValue.Low);
-            Pin_DO3.Write(GpioPinValue.Low);
-            Pin_DO4.Write(GpioPinValue.Low);
-            Pin_DO5.Write(GpioPinValue.Low);
-            Pin_DO6.Write(GpioPinValue.Low);
-            Pin_DO7.Write(GpioPinValue.Low);
-            Pin_DO8.Write(GpioPinValue.Low);
+                    this.Pin_DO1.Write(GpioPinValue.Low);
+                    this.Pin_DO2.Write(GpioPinValue.Low);
+                    this.Pin_DO3.Write(GpioPinValue.Low);
+                    this.Pin_DO4.Write(GpioPinValue.Low);
+                    this.Pin_DO5.Write(GpioPinValue.Low);
+                    this.Pin_DO6.Write(GpioPinValue.Low);
+                    this.Pin_DO7.Write(GpioPinValue.Low);
+                    this.Pin_DO8.Write(GpioPinValue.Low);                
+                }
+                else
+                {
+                    vParent.DebugLog("[GIO]","Controller not available");
+                }
+            }
+            catch (Exception e)
+            {
+                vParent.DebugLog("[GIO]","FAILURE WHILE INIT ({0})");
+                vParent.DebugLog("[GIO]", e.Message);
+            }
         }
         public bool GetPinState(byte vPin)
         {
-            switch (vPin)
+            try
             {
-                case 1: if (Pin_DO1.Read() == GpioPinValue.High) { return true; } else { return false; }
-                case 2: if (Pin_DO2.Read() == GpioPinValue.High) { return true; } else { return false; }
-                case 3: if (Pin_DO3.Read() == GpioPinValue.High) { return true; } else { return false; }
-                case 4: if (Pin_DO4.Read() == GpioPinValue.High) { return true; } else { return false; }
-                case 5: if (Pin_DO5.Read() == GpioPinValue.High) { return true; } else { return false; }
-                case 6: if (Pin_DO6.Read() == GpioPinValue.High) { return true; } else { return false; }
-                case 7: if (Pin_DO7.Read() == GpioPinValue.High) { return true; } else { return false; }
-                case 8: if (Pin_DO8.Read() == GpioPinValue.High) { return true; } else { return false; }
-                default: return false;
+                this.gpio = GpioController.GetDefault();
+                if (this.gpio != null)
+                {
+                    switch (vPin)
+                    {
+                        case 1: if (this.Pin_DO1.Read() == GpioPinValue.High) { return true; } else { return false; }
+                        case 2: if (this.Pin_DO2.Read() == GpioPinValue.High) { return true; } else { return false; }
+                        case 3: if (this.Pin_DO3.Read() == GpioPinValue.High) { return true; } else { return false; }
+                        case 4: if (this.Pin_DO4.Read() == GpioPinValue.High) { return true; } else { return false; }
+                        case 5: if (this.Pin_DO5.Read() == GpioPinValue.High) { return true; } else { return false; }
+                        case 6: if (this.Pin_DO6.Read() == GpioPinValue.High) { return true; } else { return false; }
+                        case 7: if (this.Pin_DO7.Read() == GpioPinValue.High) { return true; } else { return false; }
+                        case 8: if (this.Pin_DO8.Read() == GpioPinValue.High) { return true; } else { return false; }
+                        default: return false;
+                    }
+                }
+                else
+                {
+                    vParent.DebugLog("[GPIO]","Controller not available");
+                    return false;
+                }
             }
+            catch (Exception e)
+            {
+                vParent.DebugLog("[GPIO]","Write/Read Failure");
+                vParent.DebugLog("[GPIO]", e.Message);
+                return false;
+            }
+
         }
         public void SetPinState(byte vPin, bool vValue)
         {
-            switch (vPin)
+            try
             {
-                case 1: if (vValue) { Pin_DO1.Write(GpioPinValue.High); break; } else { Pin_DO1.Write(GpioPinValue.Low); break; }
-                case 2: if (vValue) { Pin_DO2.Write(GpioPinValue.High); break; } else { Pin_DO2.Write(GpioPinValue.Low); break; }
-                case 3: if (vValue) { Pin_DO3.Write(GpioPinValue.High); break; } else { Pin_DO3.Write(GpioPinValue.Low); break; }
-                case 4: if (vValue) { Pin_DO4.Write(GpioPinValue.High); break; } else { Pin_DO4.Write(GpioPinValue.Low); break; }
-                case 5: if (vValue) { Pin_DO5.Write(GpioPinValue.High); break; } else { Pin_DO5.Write(GpioPinValue.Low); break; }
-                case 6: if (vValue) { Pin_DO6.Write(GpioPinValue.High); break; } else { Pin_DO6.Write(GpioPinValue.Low); break; }
-                case 7: if (vValue) { Pin_DO7.Write(GpioPinValue.High); break; } else { Pin_DO7.Write(GpioPinValue.Low); break; }
-                case 8: if (vValue) { Pin_DO8.Write(GpioPinValue.High); break; } else { Pin_DO8.Write(GpioPinValue.Low); break; }
-                default: { break; }
+                this.gpio = GpioController.GetDefault();
+                if (this.gpio != null)
+                {
+                    switch (vPin)
+                    {
+                        case 1: if (vValue) { this.Pin_DO1.Write(GpioPinValue.High); break; } else { this.Pin_DO1.Write(GpioPinValue.Low); break; }
+                        case 2: if (vValue) { this.Pin_DO2.Write(GpioPinValue.High); break; } else { this.Pin_DO2.Write(GpioPinValue.Low); break; }
+                        case 3: if (vValue) { this.Pin_DO3.Write(GpioPinValue.High); break; } else { this.Pin_DO3.Write(GpioPinValue.Low); break; }
+                        case 4: if (vValue) { this.Pin_DO4.Write(GpioPinValue.High); break; } else { this.Pin_DO4.Write(GpioPinValue.Low); break; }
+                        case 5: if (vValue) { this.Pin_DO5.Write(GpioPinValue.High); break; } else { this.Pin_DO5.Write(GpioPinValue.Low); break; }
+                        case 6: if (vValue) { this.Pin_DO6.Write(GpioPinValue.High); break; } else { this.Pin_DO6.Write(GpioPinValue.Low); break; }
+                        case 7: if (vValue) { this.Pin_DO7.Write(GpioPinValue.High); break; } else { this.Pin_DO7.Write(GpioPinValue.Low); break; }
+                        case 8: if (vValue) { this.Pin_DO8.Write(GpioPinValue.High); break; } else { this.Pin_DO8.Write(GpioPinValue.Low); break; }
+                        default: { break; }
+                    }
+                }
+                else
+                {
+                    vParent.DebugLog("[GPIO]","Controller not available");
+                }
             }
+            catch (Exception e)
+            {
+                vParent.DebugLog("[GPIO]","Write/Read Failure");
+                vParent.DebugLog("[GPIO]", e.Message);
+            }
+
         }
     }
 
-        
-
     public sealed class StartupTask : IBackgroundTask
-    {
-        private Timer LogTimer;
-        private Timer SaveLogTimer;
+    {        
         List<string> LogDataList = new List<string>();
+        List<string> AppLogList  = new List<string>();
 
+        private BackgroundTaskDeferral fDef;
+        private TcpServer fTcpServer;
+        private TwiServer fTwiServer;
+        private GpioServer fGpioServer;
+        private DropboxClient fDropbox;
+        private Timer LogTimer;
+
+        public void DebugLog(string vMsg, string vDetail)
+        {
+            AppLogList.Add(DateTime.Now.ToString("HH:mm:ss.fff") + ";" + vMsg + ";" + vDetail);
+            Debug.WriteLine(DateTime.Now.ToString("HH:mm:ss.fff - ") + vMsg + " " + vDetail);
+        }
         private void LogTimer_Tick(Object stateInfo)
         {
-            LogDataList.Add(Convert.ToString(DateTime.Now) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_Light_ReadIR()) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_Light_ReadVis()) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_Light_ReadUV()) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_Temperature_Measure()) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadLevel()) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadRain()) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadPressure()) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(0)) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(1)) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(2)) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(3)) + ";" +
-                                            Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(4)) + ";" +
-                                            Convert.ToString(fGpioServer.GetPinState(1)) + ";" +
-                                            Convert.ToString(fGpioServer.GetPinState(2)) + ";" +
-                                            Convert.ToString(fGpioServer.GetPinState(3)) + ";" +
-                                            Convert.ToString(fGpioServer.GetPinState(4)) + ";" +
-                                            Convert.ToString(fGpioServer.GetPinState(5)) + ";" +
-                                            Convert.ToString(fGpioServer.GetPinState(6)) + ";" +
-                                            Convert.ToString(fGpioServer.GetPinState(7)) + ";" +
-                                            Convert.ToString(fGpioServer.GetPinState(8)) + ";"
-                                            );
-        }
-        private void SaveLogTimer_Tick(Object stateInfo)
-        {
-            SaveLogList(true);
+            try
+            {
+                LogDataList.Add(Convert.ToString(DateTime.Now) + ";" +
+                                Convert.ToString(fTwiServer.TWI_Light_ReadIR()) + ";" +
+                                Convert.ToString(fTwiServer.TWI_Light_ReadVis()) + ";" +
+                                Convert.ToString(fTwiServer.TWI_Light_ReadUV()) + ";" +
+                                Convert.ToString(fTwiServer.TWI_Temperature_Measure()) + ";" +
+                                Convert.ToString(fTwiServer.TWI_ATmega_ReadLevel()) + ";" +
+                                Convert.ToString(fTwiServer.TWI_ATmega_ReadRain()) + ";" +
+                                Convert.ToString(fTwiServer.TWI_ATmega_ReadPressure()) + ";" +
+                                Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(0)) + ";" +
+                                Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(1)) + ";" +
+                                Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(2)) + ";" +
+                                Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(3)) + ";" +
+                                Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(4)) + ";" +
+                                Convert.ToString(fGpioServer.GetPinState(1)) + ";" +
+                                Convert.ToString(fGpioServer.GetPinState(2)) + ";" +
+                                Convert.ToString(fGpioServer.GetPinState(3)) + ";" +
+                                Convert.ToString(fGpioServer.GetPinState(4)) + ";" +
+                                Convert.ToString(fGpioServer.GetPinState(5)) + ";" +
+                                Convert.ToString(fGpioServer.GetPinState(6)) + ";" +
+                                Convert.ToString(fGpioServer.GetPinState(7)) + ";" +
+                                Convert.ToString(fGpioServer.GetPinState(8))
+                                );
+                if (DateTime.Now.Minute == 59 && DateTime.Now.Second == 59) { SaveLogList(true); SaveDebugList(); }
+            }
+            catch (Exception e)
+            {
+                this.DebugLog("[LOG]","unable to write in log");
+                this.DebugLog("[LOG]", e.Message);
+            }
         }
         private void PrepareLogList()
         {
-            LogDataList.Clear();
-            LogDataList.Add("DateTime;" +
-                        "LightIR;" +
-                        "LightVis;" +
-                        "LightUV;" +
-                        "Temperature;" +
-                        "Level;" +
-                        "Rain;" +
-                        "Pressure;" +
-                        "Flow1;" +
-                        "Flow2" +
-                        "Flow3;" +
-                        "Flow4;" +
-                        "Flow5;" +
-                        "DO1;" +
-                        "DO2;" +
-                        "DO3;" +
-                        "DO4;" +
-                        "DO5;" +
-                        "DO6;" +
-                        "DO7;" +
-                        "DO8;");
+            try
+            {
+                LogDataList.Clear();
+                LogDataList.Add("DateTime;" +
+                            "LightIR;" +
+                            "LightVis;" +
+                            "LightUV;" +
+                            "Temperature;" +
+                            "Level;" +
+                            "Rain;" +
+                            "Pressure;" +
+                            "Flow1;" +
+                            "Flow2;" +
+                            "Flow3;" +
+                            "Flow4;" +
+                            "Flow5;" +
+                            "DO1;" +
+                            "DO2;" +
+                            "DO3;" +
+                            "DO4;" +
+                            "DO5;" +
+                            "DO6;" +
+                            "DO7;" +
+                            "DO8;");
+            }
+            catch (Exception e)
+            {
+                this.DebugLog("[Log]","unable to prepare log");
+                this.DebugLog("[Log]", e.Message);
+            }
         }
         private void SaveLogList(bool clear)
         {
             try
             {
-                //LogTimer.Stop();
-                String vFilename = String.Format(@"C:\DataLogFiles\{0}_{1}_{2}_DataLog.txt", DateTime.Now.Year, DateTime.Now.Month, DateTime.Now.Day);
-                System.IO.File.WriteAllText(vFilename, LogDataList.ToString());
+                this.DebugLog("[Log]","Start uploading LogDataList");
+                String vFilename = DateTime.Now.ToString("yyyy_MM_dd") + " - LogFile.csv";
+                Monitor.Enter(LogDataList);
+                var t_DbxUpload = Task.Run(async delegate { await UploadFile(fDropbox, "/LogFiles", vFilename, string.Join("\n",LogDataList.ToArray())); });
+                t_DbxUpload.Wait();
                 if (clear) { PrepareLogList(); }
+                Monitor.Exit(LogDataList);
             }
             catch (Exception e)
             {
-                Debug.WriteLine("Failed to save LogList. (" + e.Message + ")");
-            }
-            finally
-            {
-                //LogTimer.Start();
-                Debug.WriteLine("LogList saved.");
+                this.DebugLog("[Log]","Failed to save LogDataList");
+                this.DebugLog("[Log]", e.Message);
             }
         }
-        private BackgroundTaskDeferral fDef;
-        private TcpServer fTcpServer;
-        private TwiServer fTwiServer;
-        private GpioServer fGpioServer;
+        private void SaveDebugList()
+        {
+            try
+            {
+                this.DebugLog("[Log]", "Start uploading DebugDataList");
+                String vFilename = DateTime.Now.ToString("yyyy_MM_dd") + " - DebugFile.csv";
+                Monitor.Enter(AppLogList);
+                var t_DbxUpload = Task.Run(async delegate { await UploadFile(fDropbox, "/LogFiles", vFilename, string.Join("\n", AppLogList.ToArray())); });
+                t_DbxUpload.Wait();
+                AppLogList.Clear();
+                AppLogList.Add("TimeStamp;Message;Detail");
+                Monitor.Exit(AppLogList);
+            }
+            catch (DropboxException e)
+            {
+                this.DebugLog("[Log]", "Failed to save DebugDataList");
+                this.DebugLog("[Log]", e.Message);
+            }
+        }
 
-        
+        private async Task ShowCurrentAccount(DropboxClient dbx)
+        {
+            var AccInf = await dbx.Users.GetCurrentAccountAsync();
+            this.DebugLog("[DBX]", String.Format("{0} - {1}", AccInf.Name.DisplayName, AccInf.Email));
+        }
+        private async Task UploadFile(DropboxClient dbx, string vFolder, string vFile, string vContent)
+        {
+            using (var mem = new MemoryStream(Encoding.UTF8.GetBytes(vContent)))
+            {
+                var updated = await dbx.Files.UploadAsync(vFolder + "/" + vFile, WriteMode.Add.Instance, true, null, true, body: mem);
+                this.DebugLog("[DBX]",String.Format("Saved (DropBox){0}/{1} [rev {2}]", vFolder, vFile, updated.Rev));
+            }
+        }
 
         public void Run(IBackgroundTaskInstance taskInstance)
-        {
-                     
-            this.LogTimer = new Timer(this.LogTimer_Tick, null, 0, 1000);
-            this.SaveLogTimer = new Timer(this.SaveLogTimer_Tick, null, 0, 86400000);
-            
+        {                      
             fDef = taskInstance.GetDeferral();          // get deferral to keep running
 
+            AppLogList.Add("TimeStamp;Message;Detail");
+
             fTwiServer = new TwiServer();
+            fTwiServer.vParent = this;
             fTwiServer.InitTWIAsync();
 
             fTwiServer.TWI_Temperature_Config();
@@ -473,19 +842,20 @@ namespace CommunicationTest
             // --------------------------------
 
             fGpioServer = new GpioServer();
+            fGpioServer.vParent = this;
             fGpioServer.InitGPIO();
 
             PrepareLogList();
 
-            /*
-            this.LogTimer.Interval = new TimeSpan(0, 0, 0, 1, 0);
-            this.LogTimer.Tick += this.LogTimer_Tick;
-            this.LogTimer.Start();
+            this.DebugLog("[DBX]","Connect account");
+            fDropbox = new DropboxClient("IQ3QuN4TjrwAAAAAAAAiil1HquoQVD2wBsu2T9z0QuzuZUSEh4tqnHfGPBKBubqe");
+            var t_DpxAcc = Task.Run(async delegate { await ShowCurrentAccount(fDropbox); });
+            t_DpxAcc.Wait();
 
-            this.SaveLogTimer.Interval = new TimeSpan(1, 0, 0, 0, 0);
-            this.SaveLogTimer.Tick += this.SaveLogTimer_Tick;
-            this.SaveLogTimer.Start();
-            */
+            this.DebugLog("[APP]","Starting Log timer");
+            this.LogTimer     = new Timer(this.LogTimer_Tick,     null,    1000,     1000);
+
+            this.DebugLog("[APP]","Starting TCP Server");
             fTcpServer = new TcpServer();
             fTcpServer.RequestReceived = (request) =>
             {
@@ -495,12 +865,12 @@ namespace CommunicationTest
                 switch (uri.Query)
                 {
                     case "?120":
-                        Debug.WriteLine("Command 120 received, ATmega counter reset");
+                        this.DebugLog("[HTTP]","Command 120 received, ATmega counter reset");
                         fTwiServer.TWI_ATmega_ResetCounter();
                         return "CMD_120: counter reset";
                     //------ cmd 13n = DOn -> ON  ------------------------------------
                     case "?130":
-                        Debug.WriteLine("Command 130 received, ALL VALVES -> OPEN");
+                        this.DebugLog("[HTTP]", "Command 130 received, ALL VALVES -> OPEN");
                         fGpioServer.SetPinState(3, true);
                         fGpioServer.SetPinState(4, true);
                         fGpioServer.SetPinState(5, true);
@@ -508,40 +878,40 @@ namespace CommunicationTest
                         fGpioServer.SetPinState(7, true);
                         return "CMD_130: ALL VALVES -> OPEN";
                     case "?131":
-                        Debug.WriteLine("Command 131 received, DO_1 -> ON");
+                        this.DebugLog("[HTTP]", "Command 131 received, DO_1 -> ON");
                         fGpioServer.SetPinState(1, true);
                         return "CMD_131: DO_1 -> ON";
                     case "?132":
-                        Debug.WriteLine("Command 132 received, DO_2 -> ON");
+                        this.DebugLog("[HTTP]", "Command 132 received, DO_2 -> ON");
                         fGpioServer.SetPinState(2, true);
                         return "CMD_132: DO_2 -> ON";
                     case "?133":
-                        Debug.WriteLine("Command 133 received, DO_3 -> ON");
+                        this.DebugLog("[HTTP]", "Command 133 received, DO_3 -> ON");
                         fGpioServer.SetPinState(3, true);
                         return "CMD_133: DO_3 -> ON";
                     case "?134":
-                        Debug.WriteLine("Command 134 received, DO_4 -> ON");
+                        this.DebugLog("[HTTP]", "Command 134 received, DO_4 -> ON");
                         fGpioServer.SetPinState(4, true);
                         return "CMD_134: DO_4 -> ON";
                     case "?135":
-                        Debug.WriteLine("Command 135 received, DO_5 -> ON");
+                        this.DebugLog("[HTTP]", "Command 135 received, DO_5 -> ON");
                         fGpioServer.SetPinState(5, true);
                         return "CMD_135: DO_5 -> ON";
                     case "?136":
-                        Debug.WriteLine("Command 136 received, DO_6 -> ON");
+                        this.DebugLog("[HTTP]", "Command 136 received, DO_6 -> ON");
                         fGpioServer.SetPinState(6, true);
                         return "CMD_136: DO_6 -> ON";
                     case "?137":
-                        Debug.WriteLine("Command 137 received, DO_7 -> ON");
+                        this.DebugLog("[HTTP]", "Command 137 received, DO_7 -> ON");
                         fGpioServer.SetPinState(7, true);
                         return "CMD_137: DO_7 -> ON";
                     case "?138":
-                        Debug.WriteLine("Command 138 received, DO_8 -> ON");
+                        this.DebugLog("[HTTP]", "Command 138 received, DO_8 -> ON");
                         fGpioServer.SetPinState(8, true);
                         return "CMD_138: DO_8 -> ON";
                     //------ cmd 14n = DOn -> OFF  ------------------------------------
                     case "?140":
-                        Debug.WriteLine("Command 140 received, ALL -> OFF");
+                        this.DebugLog("[HTTP]", "Command 140 received, ALL -> OFF");
                         fGpioServer.SetPinState(1, false);
                         fGpioServer.SetPinState(2, false);
                         fGpioServer.SetPinState(3, false);
@@ -552,40 +922,40 @@ namespace CommunicationTest
                         fGpioServer.SetPinState(8, false);
                         return "CMD_140: ALL -> OFF";
                     case "?141":
-                        Debug.WriteLine("Command 141 received, DO_1 -> OFF");
+                        this.DebugLog("[HTTP]", "Command 141 received, DO_1 -> OFF");
                         fGpioServer.SetPinState(1, false);
                         return "CMD_141: DO_1 -> OFF";
                     case "?142":
-                        Debug.WriteLine("Command 142 received, DO_2 -> OFF");
+                        this.DebugLog("[HTTP]", "Command 142 received, DO_2 -> OFF");
                         fGpioServer.SetPinState(2, false);
                         return "CMD_142: DO_2 -> OFF";
                     case "?143":
-                        Debug.WriteLine("Command 143 received, DO_3 -> OFF");
+                        this.DebugLog("[HTTP]", "Command 143 received, DO_3 -> OFF");
                         fGpioServer.SetPinState(3, false);
                         return "CMD_143: DO_3 -> OFF";
                     case "?144":
-                        Debug.WriteLine("Command 144 received, DO_4 -> OFF");
+                        this.DebugLog("[HTTP]", "Command 144 received, DO_4 -> OFF");
                         fGpioServer.SetPinState(4, false);
                         return "CMD_144: DO_4 -> OFF";
                     case "?145":
-                        Debug.WriteLine("Command 145 received, DO_5 -> OFF");
+                        this.DebugLog("[HTTP]", "Command 145 received, DO_5 -> OFF");
                         fGpioServer.SetPinState(5, false);
                         return "CMD_145: DO_5 -> OFF";
                     case "?146":
-                        Debug.WriteLine("Command 146 received, DO_6 -> OFF");
+                        this.DebugLog("[HTTP]", "Command 146 received, DO_6 -> OFF");
                         fGpioServer.SetPinState(6, false);
                         return "CMD_146: DO_6 -> OFF";
                     case "?147":
-                        Debug.WriteLine("Command 147 received, DO_7 -> OFF");
+                        this.DebugLog("[HTTP]", "Command 147 received, DO_7 -> OFF");
                         fGpioServer.SetPinState(7, false);
                         return "CMD_147: DO_7 -> OFF";
                     case "?148":
-                        Debug.WriteLine("Command 148 received, DO_8 -> OFF");
+                        this.DebugLog("[HTTP]", "Command 148 received, DO_8 -> OFF");
                         fGpioServer.SetPinState(8, false);
                         return "CMD_148: DO_8 -> OFF";
                     //-------- cmd 121 = gather enviromental data ----------------------------------
                     case "?121":
-                        Debug.WriteLine("Command 121 received, environmental data requested");
+                        this.DebugLog("[HTTP]", "Command 121 received, environmental data requested");
                         XElement EnvDataXML =
                             new XElement("EnvironmentalData",
                             new XElement("Level", fTwiServer.TWI_ATmega_ReadLevel()),
@@ -599,7 +969,7 @@ namespace CommunicationTest
                         return EnvDataXML.ToString();
                     //-------- cmd 122 = gather sensor data ----------------------------------
                     case "?122":
-                        Debug.WriteLine("Command 122 received, sensors data requested");
+                        this.DebugLog("[HTTP]", "Command 122 received, sensors data requested");
                         // 
                         XElement SensDataXML =
                             new XElement("SensorData",
@@ -614,9 +984,9 @@ namespace CommunicationTest
                         return SensDataXML.ToString();
                     //-------- cmd 123 = all sensor data for service tool ----------------------------------
                     case "?123":
-                        Debug.WriteLine("Command 123 received, GPIO states reaquested");
+                        this.DebugLog("[HTTP]", "Command 123 received, GPIO states reaquested");
                         // 
-                        XElement ServiceDataXML =
+                        XElement GpioDataXML =
                             new XElement("GPIO_States",
                             new XElement("DO1", fGpioServer.GetPinState(1)),
                             new XElement("DO2", fGpioServer.GetPinState(2)),
@@ -628,10 +998,10 @@ namespace CommunicationTest
                             new XElement("DO8", fGpioServer.GetPinState(8))                                                      
                             );
 
-                        return ServiceDataXML.ToString();
+                        return GpioDataXML.ToString();
                     
                     case "?190":
-                        Debug.WriteLine("Command 190 received, LogData will be saved");
+                        this.DebugLog("[HTTP]", "Command 190 received, LogData will be saved");
                         SaveLogList(false);
                         return LogDataList.ToString();
                     // -------- unknown request code - 
@@ -641,6 +1011,7 @@ namespace CommunicationTest
                 ;
             };
             fTcpServer.Initialise(8081);
+            this.DebugLog("[APP]","Initialization finished");
         }
     }
 
