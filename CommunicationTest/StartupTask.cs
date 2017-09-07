@@ -18,6 +18,13 @@ using Dropbox.Api;
 using Dropbox.Api.Users;
 using Dropbox.Api.Files;
 
+/*
+07-09-2017 Michael Kollmeyer
+Finalized branche, fully developable
+    - cleaned up
+    - 
+     */
+
 namespace CommunicationTest
 {
     public delegate string TcpRequestReceived(string request); // Basic Server which listens for TCP Requests and provides the user with the ability to craft own responses as strings
