@@ -17,12 +17,16 @@ using Windows.ApplicationModel.Background;
 using Dropbox.Api;
 using Dropbox.Api.Users;
 using Dropbox.Api.Files;
+using System.Net.Sockets;
+using System.Net;
 
 /*
 07-09-2017 Michael Kollmeyer
 Finalized branche, fully developable
     - cleaned up
-    - 
+    - new timer for logging
+    - dropbox integration
+    - xml data to service tool via http/tcp
      */
 
 namespace CommunicationTest
@@ -707,6 +711,9 @@ namespace CommunicationTest
         private DropboxClient fDropbox;
         private Timer LogTimer;
 
+        UdpClient TxUDPclient = new UdpClient();
+        IPEndPoint IPconf = new IPEndPoint(IPAddress.Broadcast, 12300);
+
         public void DebugLog(string vMsg, string vDetail)
         {
             AppLogList.Add(DateTime.Now.ToString("HH:mm:ss.fff") + ";" + vMsg + ";" + vDetail);
@@ -716,29 +723,80 @@ namespace CommunicationTest
         {
             try
             {
+            #region variables
+                var v_LightIR  = fTwiServer.TWI_Light_ReadIR();        // int -> 2byte
+                var v_LightVS  = fTwiServer.TWI_Light_ReadVis();       // int -> 2byte
+                var v_LightUV  = fTwiServer.TWI_Light_ReadUV();        // int -> 2byte
+                var v_Tempera  = fTwiServer.TWI_Temperature_Measure(); // int -> 2byte
+                var v_Level    = fTwiServer.TWI_ATmega_ReadLevel();    // int -> 2byte
+                var v_Rain     = fTwiServer.TWI_ATmega_ReadRain();     // int -> 2byte
+                var v_Pressure = fTwiServer.TWI_ATmega_ReadPressure(); // int -> 2byte
+                var v_Flow1    = fTwiServer.TWI_ATmega_ReadSensor(0);  // byte
+                var v_Flow2    = fTwiServer.TWI_ATmega_ReadSensor(1);  // byte
+                var v_Flow3    = fTwiServer.TWI_ATmega_ReadSensor(2);  // byte
+                var v_Flow4    = fTwiServer.TWI_ATmega_ReadSensor(3);  // byte
+                var v_Flow5    = fTwiServer.TWI_ATmega_ReadSensor(4);  // byte
+                var v_Output1  = fGpioServer.GetPinState(1);           // byte
+                var v_Output2  = fGpioServer.GetPinState(2);           // byte
+                var v_Output3  = fGpioServer.GetPinState(3);           // byte
+                var v_Output4  = fGpioServer.GetPinState(4);           // byte
+                var v_Output5  = fGpioServer.GetPinState(5);           // byte
+                var v_Output6  = fGpioServer.GetPinState(6);           // byte
+                var v_Output7  = fGpioServer.GetPinState(7);           // byte
+                var v_Output8  = fGpioServer.GetPinState(8);           // byte
+                #endregion variables
+            #region LogDataList
                 LogDataList.Add(Convert.ToString(DateTime.Now) + ";" +
-                                Convert.ToString(fTwiServer.TWI_Light_ReadIR()) + ";" +
-                                Convert.ToString(fTwiServer.TWI_Light_ReadVis()) + ";" +
-                                Convert.ToString(fTwiServer.TWI_Light_ReadUV()) + ";" +
-                                Convert.ToString(fTwiServer.TWI_Temperature_Measure()) + ";" +
-                                Convert.ToString(fTwiServer.TWI_ATmega_ReadLevel()) + ";" +
-                                Convert.ToString(fTwiServer.TWI_ATmega_ReadRain()) + ";" +
-                                Convert.ToString(fTwiServer.TWI_ATmega_ReadPressure()) + ";" +
-                                Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(0)) + ";" +
-                                Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(1)) + ";" +
-                                Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(2)) + ";" +
-                                Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(3)) + ";" +
-                                Convert.ToString(fTwiServer.TWI_ATmega_ReadSensor(4)) + ";" +
-                                Convert.ToString(fGpioServer.GetPinState(1)) + ";" +
-                                Convert.ToString(fGpioServer.GetPinState(2)) + ";" +
-                                Convert.ToString(fGpioServer.GetPinState(3)) + ";" +
-                                Convert.ToString(fGpioServer.GetPinState(4)) + ";" +
-                                Convert.ToString(fGpioServer.GetPinState(5)) + ";" +
-                                Convert.ToString(fGpioServer.GetPinState(6)) + ";" +
-                                Convert.ToString(fGpioServer.GetPinState(7)) + ";" +
-                                Convert.ToString(fGpioServer.GetPinState(8))
+                                Convert.ToString(v_LightIR)    + ";" +
+                                Convert.ToString(v_LightVS)    + ";" +
+                                Convert.ToString(v_LightUV)    + ";" +
+                                Convert.ToString(v_Tempera)    + ";" +
+                                Convert.ToString(v_Level)      + ";" +
+                                Convert.ToString(v_Rain)       + ";" +
+                                Convert.ToString(v_Pressure)   + ";" +
+                                Convert.ToString(v_Flow1)      + ";" +
+                                Convert.ToString(v_Flow2)      + ";" +
+                                Convert.ToString(v_Flow3)      + ";" +
+                                Convert.ToString(v_Flow4)      + ";" +
+                                Convert.ToString(v_Flow5)      + ";" +
+                                Convert.ToString(v_Output1)    + ";" +
+                                Convert.ToString(v_Output2)    + ";" +
+                                Convert.ToString(v_Output3)    + ";" +
+                                Convert.ToString(v_Output4)    + ";" +
+                                Convert.ToString(v_Output5)    + ";" +
+                                Convert.ToString(v_Output6)    + ";" +
+                                Convert.ToString(v_Output7)    + ";" +
+                                Convert.ToString(v_Output8)
                                 );
-                if (DateTime.Now.Minute == 59 && DateTime.Now.Second == 59) { SaveLogList(true); SaveDebugList(); }
+                #endregion LogDataList
+            #region UDPstream
+                List<byte> vDataStream = new List<byte>();
+                vDataStream.AddRange(BitConverter.GetBytes(v_LightIR));
+                vDataStream.AddRange(BitConverter.GetBytes(v_LightVS));
+                vDataStream.AddRange(BitConverter.GetBytes(v_LightUV));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Tempera));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Level));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Rain));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Pressure));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Flow1));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Flow2));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Flow3));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Flow4));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Flow5));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Output1));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Output2));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Output3));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Output4));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Output5));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Output6));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Output7));
+                vDataStream.AddRange(BitConverter.GetBytes(v_Output8));
+                #endregion UDPstream
+                
+                var UDPsend = Task.Run(async delegate { await TxUDPclient.SendAsync(vDataStream.ToArray(), vDataStream.ToArray().Length, IPconf); });
+                UDPsend.Wait();
+
+                if (DateTime.Now.Hour == 23 && DateTime.Now.Minute == 59 && DateTime.Now.Second == 59) { SaveLogList(true); SaveDebugList(); }
             }
             catch (Exception e)
             {
@@ -816,7 +874,7 @@ namespace CommunicationTest
                 this.DebugLog("[Log]", e.Message);
             }
         }
-
+        
         private async Task ShowCurrentAccount(DropboxClient dbx)
         {
             var AccInf = await dbx.Users.GetCurrentAccountAsync();
@@ -872,12 +930,12 @@ namespace CommunicationTest
                 switch (uri.Query)
                 {
                     case "?120":
-                        this.DebugLog("[HTTP]","Command 120 received, ATmega counter reset");
+                        this.DebugLog("[NET]","Command 120 received, ATmega counter reset");
                         fTwiServer.TWI_ATmega_ResetCounter();
                         return "CMD_120: counter reset";
                     //------ cmd 13n = DOn -> ON  ------------------------------------
                     case "?130":
-                        this.DebugLog("[HTTP]", "Command 130 received, ALL VALVES -> OPEN");
+                        this.DebugLog("[NET]", "Command 130 received, ALL VALVES -> OPEN");
                         fGpioServer.SetPinState(3, true);
                         fGpioServer.SetPinState(4, true);
                         fGpioServer.SetPinState(5, true);
@@ -885,40 +943,40 @@ namespace CommunicationTest
                         fGpioServer.SetPinState(7, true);
                         return "CMD_130: ALL VALVES -> OPEN";
                     case "?131":
-                        this.DebugLog("[HTTP]", "Command 131 received, DO_1 -> ON");
+                        this.DebugLog("[NET]", "Command 131 received, DO_1 -> ON");
                         fGpioServer.SetPinState(1, true);
                         return "CMD_131: DO_1 -> ON";
                     case "?132":
-                        this.DebugLog("[HTTP]", "Command 132 received, DO_2 -> ON");
+                        this.DebugLog("[NET]", "Command 132 received, DO_2 -> ON");
                         fGpioServer.SetPinState(2, true);
                         return "CMD_132: DO_2 -> ON";
                     case "?133":
-                        this.DebugLog("[HTTP]", "Command 133 received, DO_3 -> ON");
+                        this.DebugLog("[NET]", "Command 133 received, DO_3 -> ON");
                         fGpioServer.SetPinState(3, true);
                         return "CMD_133: DO_3 -> ON";
                     case "?134":
-                        this.DebugLog("[HTTP]", "Command 134 received, DO_4 -> ON");
+                        this.DebugLog("[NET]", "Command 134 received, DO_4 -> ON");
                         fGpioServer.SetPinState(4, true);
                         return "CMD_134: DO_4 -> ON";
                     case "?135":
-                        this.DebugLog("[HTTP]", "Command 135 received, DO_5 -> ON");
+                        this.DebugLog("[NET]", "Command 135 received, DO_5 -> ON");
                         fGpioServer.SetPinState(5, true);
                         return "CMD_135: DO_5 -> ON";
                     case "?136":
-                        this.DebugLog("[HTTP]", "Command 136 received, DO_6 -> ON");
+                        this.DebugLog("[NET]", "Command 136 received, DO_6 -> ON");
                         fGpioServer.SetPinState(6, true);
                         return "CMD_136: DO_6 -> ON";
                     case "?137":
-                        this.DebugLog("[HTTP]", "Command 137 received, DO_7 -> ON");
+                        this.DebugLog("[NET]", "Command 137 received, DO_7 -> ON");
                         fGpioServer.SetPinState(7, true);
                         return "CMD_137: DO_7 -> ON";
                     case "?138":
-                        this.DebugLog("[HTTP]", "Command 138 received, DO_8 -> ON");
+                        this.DebugLog("[NET]", "Command 138 received, DO_8 -> ON");
                         fGpioServer.SetPinState(8, true);
                         return "CMD_138: DO_8 -> ON";
                     //------ cmd 14n = DOn -> OFF  ------------------------------------
                     case "?140":
-                        this.DebugLog("[HTTP]", "Command 140 received, ALL -> OFF");
+                        this.DebugLog("[NET]", "Command 140 received, ALL -> OFF");
                         fGpioServer.SetPinState(1, false);
                         fGpioServer.SetPinState(2, false);
                         fGpioServer.SetPinState(3, false);
@@ -929,40 +987,40 @@ namespace CommunicationTest
                         fGpioServer.SetPinState(8, false);
                         return "CMD_140: ALL -> OFF";
                     case "?141":
-                        this.DebugLog("[HTTP]", "Command 141 received, DO_1 -> OFF");
+                        this.DebugLog("[NET]", "Command 141 received, DO_1 -> OFF");
                         fGpioServer.SetPinState(1, false);
                         return "CMD_141: DO_1 -> OFF";
                     case "?142":
-                        this.DebugLog("[HTTP]", "Command 142 received, DO_2 -> OFF");
+                        this.DebugLog("[NET]", "Command 142 received, DO_2 -> OFF");
                         fGpioServer.SetPinState(2, false);
                         return "CMD_142: DO_2 -> OFF";
                     case "?143":
-                        this.DebugLog("[HTTP]", "Command 143 received, DO_3 -> OFF");
+                        this.DebugLog("[NET]", "Command 143 received, DO_3 -> OFF");
                         fGpioServer.SetPinState(3, false);
                         return "CMD_143: DO_3 -> OFF";
                     case "?144":
-                        this.DebugLog("[HTTP]", "Command 144 received, DO_4 -> OFF");
+                        this.DebugLog("[NET]", "Command 144 received, DO_4 -> OFF");
                         fGpioServer.SetPinState(4, false);
                         return "CMD_144: DO_4 -> OFF";
                     case "?145":
-                        this.DebugLog("[HTTP]", "Command 145 received, DO_5 -> OFF");
+                        this.DebugLog("[NET]", "Command 145 received, DO_5 -> OFF");
                         fGpioServer.SetPinState(5, false);
                         return "CMD_145: DO_5 -> OFF";
                     case "?146":
-                        this.DebugLog("[HTTP]", "Command 146 received, DO_6 -> OFF");
+                        this.DebugLog("[NET]", "Command 146 received, DO_6 -> OFF");
                         fGpioServer.SetPinState(6, false);
                         return "CMD_146: DO_6 -> OFF";
                     case "?147":
-                        this.DebugLog("[HTTP]", "Command 147 received, DO_7 -> OFF");
+                        this.DebugLog("[NET]", "Command 147 received, DO_7 -> OFF");
                         fGpioServer.SetPinState(7, false);
                         return "CMD_147: DO_7 -> OFF";
                     case "?148":
-                        this.DebugLog("[HTTP]", "Command 148 received, DO_8 -> OFF");
+                        this.DebugLog("[NET]", "Command 148 received, DO_8 -> OFF");
                         fGpioServer.SetPinState(8, false);
                         return "CMD_148: DO_8 -> OFF";
                     //-------- cmd 121 = gather enviromental data ----------------------------------
                     case "?121":
-                        this.DebugLog("[HTTP]", "Command 121 received, environmental data requested");
+                        this.DebugLog("[NET]", "Command 121 received, environmental data requested");
                         XElement EnvDataXML =
                             new XElement("EnvironmentalData",
                             new XElement("Level", fTwiServer.TWI_ATmega_ReadLevel()),
@@ -976,7 +1034,7 @@ namespace CommunicationTest
                         return EnvDataXML.ToString();
                     //-------- cmd 122 = gather sensor data ----------------------------------
                     case "?122":
-                        this.DebugLog("[HTTP]", "Command 122 received, sensors data requested");
+                        this.DebugLog("[NET]", "Command 122 received, sensors data requested");
                         // 
                         XElement SensDataXML =
                             new XElement("SensorData",
@@ -991,7 +1049,7 @@ namespace CommunicationTest
                         return SensDataXML.ToString();
                     //-------- cmd 123 = all sensor data for service tool ----------------------------------
                     case "?123":
-                        this.DebugLog("[HTTP]", "Command 123 received, GPIO states reaquested");
+                        this.DebugLog("[NET]", "Command 123 received, GPIO states reaquested");
                         // 
                         XElement GpioDataXML =
                             new XElement("GPIO_States",
@@ -1008,8 +1066,7 @@ namespace CommunicationTest
                         return GpioDataXML.ToString();
                     
                     case "?190":
-                        this.DebugLog("[HTTP]", "Command 190 received, LogData will be saved");
-                        SaveLogList(false);
+                        this.DebugLog("[NET]", "Command 190 received, Logging data reaquested");
                         return LogDataList.ToString();
                     // -------- unknown request code - 
                     default:
