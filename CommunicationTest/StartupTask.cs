@@ -704,6 +704,14 @@ namespace CommunicationTest
         List<string> LogDataList = new List<string>();
         List<string> AppLogList  = new List<string>();
 
+        int vVolume1Setp = 0;
+        int vVolume2Setp = 0;
+        int vVolume3Setp = 0;
+        int vVolume4Setp = 0;
+        int vVolume5Setp = 0;
+        int vWaterTimeH  = 9;
+        int vWaterTimeM =  0;
+
         private BackgroundTaskDeferral fDef;
         private TcpServer fTcpServer;
         private TwiServer fTwiServer;
@@ -796,8 +804,16 @@ namespace CommunicationTest
                 var UDPsend = Task.Run(async delegate { await TxUDPclient.SendAsync(vDataStream.ToArray(), vDataStream.ToArray().Length, IPconf); });
                 UDPsend.Wait();
 
-                if (DateTime.Now.Hour == 23 && DateTime.Now.Minute == 59 && DateTime.Now.Second == 59) { SaveLogList(true); SaveDebugList(); }
-            }
+                if (DateTime.Now.Hour == 23 && DateTime.Now.Minute == 59 && DateTime.Now.Second == 59)
+                {
+                    SaveLogList(true);
+                    SaveDebugList();
+                }
+                if (DateTime.Now.Hour == vWaterTimeH && DateTime.Now.Minute == vWaterTimeM && DateTime.Now.Second == 59)
+                {
+                    var t_Watering = Task.Run(async delegate { await Watering(); }) ;
+                    t_Watering.Wait();
+                }
             catch (Exception e)
             {
                 this.DebugLog("[LOG]","unable to write in log");
@@ -874,7 +890,92 @@ namespace CommunicationTest
                 this.DebugLog("[Log]", e.Message);
             }
         }
-        
+        private void Watering()
+        {
+            if (vVolume1Setp > 0)
+            {
+                fGpioServer.SetPinState(3, true);                                                       // Open Valve #1
+                var t_wait   = Task.Run(async delegate { await Task.Delay(2000); }); t_wait.Wait();     // wait 2s
+                var t_Water1 = Task.Run(async delegate
+                {   
+                    fGpioServer.SetPinState(1, true);                                                   // Start Pump
+                    while (fTwiServer.TWI_ATmega_ReadSensor(0) < vVolume1Setp)
+                    {
+                        await Task.Delay(1000);
+                    }
+                    fGpioServer.SetPinState(1, false);                                                  // Stop Pump
+                });                        t_Water1.Wait();                                             // Check flow every second and wait for full volume watering
+                t_wait       = Task.Run(async delegate { await Task.Delay(5000); }); t_wait.Wait();     // wait 5s
+                fGpioServer.SetPinState(3, false);                                                      // Close Valve #1
+            }
+            if (vVolume2Setp > 0)
+            {
+                fGpioServer.SetPinState(4, true);                                                       // Open Valve
+                var t_wait = Task.Run(async delegate { await Task.Delay(2000); }); t_wait.Wait();       // wait 2s
+                var t_Water2 = Task.Run(async delegate
+                {
+                    fGpioServer.SetPinState(1, true);                                                   // Start Pump
+                    while (fTwiServer.TWI_ATmega_ReadSensor(1) < vVolume2Setp)
+                    {
+                        await Task.Delay(1000);
+                    }
+                    fGpioServer.SetPinState(1, false);                                                  // Stop Pump
+                }); t_Water2.Wait();                                                                    // Check flow every second and wait for full volume watering
+                t_wait = Task.Run(async delegate { await Task.Delay(5000); }); t_wait.Wait();           // wait 5s
+                fGpioServer.SetPinState(4, false);                                                      // Close Valve #2
+            }
+            if (vVolume3Setp > 0)
+            {
+                fGpioServer.SetPinState(5, true);                                                       // Open Valve #3
+                var t_wait = Task.Run(async delegate { await Task.Delay(2000); }); t_wait.Wait();       // wait 2s
+                var t_Water3 = Task.Run(async delegate
+                {
+                    fGpioServer.SetPinState(1, true);                                                   // Start Pump
+                    while (fTwiServer.TWI_ATmega_ReadSensor(2) < vVolume3Setp)
+                    {
+                        await Task.Delay(1000);
+                    }
+                    fGpioServer.SetPinState(1, false);                                                  // Stop Pump
+                }); t_Water3.Wait();                                                                    // Check flow every second and wait for full volume watering
+                t_wait = Task.Run(async delegate { await Task.Delay(5000); }); t_wait.Wait();           // wait 5s
+                fGpioServer.SetPinState(5, false);                                                      // Close Valve #3
+            }
+            if (vVolume4Setp > 0)
+            {
+                fGpioServer.SetPinState(6, true);                                                       // Open Valve #4
+                var t_wait = Task.Run(async delegate { await Task.Delay(2000); }); t_wait.Wait();       // wait 2s
+                var t_Water4 = Task.Run(async delegate
+                {
+                    fGpioServer.SetPinState(1, true);                                                   // Start Pump
+                    while (fTwiServer.TWI_ATmega_ReadSensor(3) < vVolume4Setp)
+                    {
+                        await Task.Delay(1000);
+                    }
+                    fGpioServer.SetPinState(1, false);                                                  // Stop Pump
+                }); t_Water4.Wait();                                                                    // Check flow every second and wait for full volume watering
+                t_wait = Task.Run(async delegate { await Task.Delay(5000); }); t_wait.Wait();           // wait 5s
+                fGpioServer.SetPinState(6, false);                                                      // Close Valve #4
+            }
+            if (vVolume5Setp > 0)
+            {
+                fGpioServer.SetPinState(7, true);                                                       // Open Valve #5
+                var t_wait = Task.Run(async delegate { await Task.Delay(2000); }); t_wait.Wait();       // wait 2s
+                var t_Water5 = Task.Run(async delegate
+                {
+                    fGpioServer.SetPinState(1, true);                                                   // Start Pump
+                    while (fTwiServer.TWI_ATmega_ReadSensor(4) < vVolume5Setp)
+                    {
+                        await Task.Delay(1000);
+                    }
+                    fGpioServer.SetPinState(1, false);                                                  // Stop Pump
+                }); t_Water5.Wait();                                                                    // Check flow every second and wait for full volume watering
+                t_wait = Task.Run(async delegate { await Task.Delay(5000); }); t_wait.Wait();           // wait 5s
+                fGpioServer.SetPinState(7, false);                                                      // Close Valve #5
+            }
+            
+            fTwiServer.TWI_ATmega_ResetCounter();
+        }
+
         private async Task ShowCurrentAccount(DropboxClient dbx)
         {
             var AccInf = await dbx.Users.GetCurrentAccountAsync();
