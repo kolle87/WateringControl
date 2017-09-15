@@ -731,53 +731,53 @@ namespace CommunicationTest
         {
             try
             {
-            #region variables
-                var v_LightIR  = fTwiServer.TWI_Light_ReadIR();        // int -> 2byte
-                var v_LightVS  = fTwiServer.TWI_Light_ReadVis();       // int -> 2byte
-                var v_LightUV  = fTwiServer.TWI_Light_ReadUV();        // int -> 2byte
-                var v_Tempera  = fTwiServer.TWI_Temperature_Measure(); // int -> 2byte
-                var v_Level    = fTwiServer.TWI_ATmega_ReadLevel();    // int -> 2byte
-                var v_Rain     = fTwiServer.TWI_ATmega_ReadRain();     // int -> 2byte
+                #region variables
+                var v_LightIR = fTwiServer.TWI_Light_ReadIR();        // int -> 2byte
+                var v_LightVS = fTwiServer.TWI_Light_ReadVis();       // int -> 2byte
+                var v_LightUV = fTwiServer.TWI_Light_ReadUV();        // int -> 2byte
+                var v_Tempera = fTwiServer.TWI_Temperature_Measure(); // int -> 2byte
+                var v_Level = fTwiServer.TWI_ATmega_ReadLevel();    // int -> 2byte
+                var v_Rain = fTwiServer.TWI_ATmega_ReadRain();     // int -> 2byte
                 var v_Pressure = fTwiServer.TWI_ATmega_ReadPressure(); // int -> 2byte
-                var v_Flow1    = fTwiServer.TWI_ATmega_ReadSensor(0);  // byte
-                var v_Flow2    = fTwiServer.TWI_ATmega_ReadSensor(1);  // byte
-                var v_Flow3    = fTwiServer.TWI_ATmega_ReadSensor(2);  // byte
-                var v_Flow4    = fTwiServer.TWI_ATmega_ReadSensor(3);  // byte
-                var v_Flow5    = fTwiServer.TWI_ATmega_ReadSensor(4);  // byte
-                var v_Output1  = fGpioServer.GetPinState(1);           // byte
-                var v_Output2  = fGpioServer.GetPinState(2);           // byte
-                var v_Output3  = fGpioServer.GetPinState(3);           // byte
-                var v_Output4  = fGpioServer.GetPinState(4);           // byte
-                var v_Output5  = fGpioServer.GetPinState(5);           // byte
-                var v_Output6  = fGpioServer.GetPinState(6);           // byte
-                var v_Output7  = fGpioServer.GetPinState(7);           // byte
-                var v_Output8  = fGpioServer.GetPinState(8);           // byte
+                var v_Flow1 = fTwiServer.TWI_ATmega_ReadSensor(0);  // byte
+                var v_Flow2 = fTwiServer.TWI_ATmega_ReadSensor(1);  // byte
+                var v_Flow3 = fTwiServer.TWI_ATmega_ReadSensor(2);  // byte
+                var v_Flow4 = fTwiServer.TWI_ATmega_ReadSensor(3);  // byte
+                var v_Flow5 = fTwiServer.TWI_ATmega_ReadSensor(4);  // byte
+                var v_Output1 = fGpioServer.GetPinState(1);           // byte
+                var v_Output2 = fGpioServer.GetPinState(2);           // byte
+                var v_Output3 = fGpioServer.GetPinState(3);           // byte
+                var v_Output4 = fGpioServer.GetPinState(4);           // byte
+                var v_Output5 = fGpioServer.GetPinState(5);           // byte
+                var v_Output6 = fGpioServer.GetPinState(6);           // byte
+                var v_Output7 = fGpioServer.GetPinState(7);           // byte
+                var v_Output8 = fGpioServer.GetPinState(8);           // byte
                 #endregion variables
-            #region LogDataList
+                #region LogDataList
                 LogDataList.Add(Convert.ToString(DateTime.Now) + ";" +
-                                Convert.ToString(v_LightIR)    + ";" +
-                                Convert.ToString(v_LightVS)    + ";" +
-                                Convert.ToString(v_LightUV)    + ";" +
-                                Convert.ToString(v_Tempera)    + ";" +
-                                Convert.ToString(v_Level)      + ";" +
-                                Convert.ToString(v_Rain)       + ";" +
-                                Convert.ToString(v_Pressure)   + ";" +
-                                Convert.ToString(v_Flow1)      + ";" +
-                                Convert.ToString(v_Flow2)      + ";" +
-                                Convert.ToString(v_Flow3)      + ";" +
-                                Convert.ToString(v_Flow4)      + ";" +
-                                Convert.ToString(v_Flow5)      + ";" +
-                                Convert.ToString(v_Output1)    + ";" +
-                                Convert.ToString(v_Output2)    + ";" +
-                                Convert.ToString(v_Output3)    + ";" +
-                                Convert.ToString(v_Output4)    + ";" +
-                                Convert.ToString(v_Output5)    + ";" +
-                                Convert.ToString(v_Output6)    + ";" +
-                                Convert.ToString(v_Output7)    + ";" +
+                                Convert.ToString(v_LightIR) + ";" +
+                                Convert.ToString(v_LightVS) + ";" +
+                                Convert.ToString(v_LightUV) + ";" +
+                                Convert.ToString(v_Tempera) + ";" +
+                                Convert.ToString(v_Level) + ";" +
+                                Convert.ToString(v_Rain) + ";" +
+                                Convert.ToString(v_Pressure) + ";" +
+                                Convert.ToString(v_Flow1) + ";" +
+                                Convert.ToString(v_Flow2) + ";" +
+                                Convert.ToString(v_Flow3) + ";" +
+                                Convert.ToString(v_Flow4) + ";" +
+                                Convert.ToString(v_Flow5) + ";" +
+                                Convert.ToString(v_Output1) + ";" +
+                                Convert.ToString(v_Output2) + ";" +
+                                Convert.ToString(v_Output3) + ";" +
+                                Convert.ToString(v_Output4) + ";" +
+                                Convert.ToString(v_Output5) + ";" +
+                                Convert.ToString(v_Output6) + ";" +
+                                Convert.ToString(v_Output7) + ";" +
                                 Convert.ToString(v_Output8)
                                 );
                 #endregion LogDataList
-            #region UDPstream
+                #region UDPstream
                 List<byte> vDataStream = new List<byte>();
                 vDataStream.AddRange(BitConverter.GetBytes(v_LightIR));
                 vDataStream.AddRange(BitConverter.GetBytes(v_LightVS));
@@ -800,7 +800,7 @@ namespace CommunicationTest
                 vDataStream.AddRange(BitConverter.GetBytes(v_Output7));
                 vDataStream.AddRange(BitConverter.GetBytes(v_Output8));
                 #endregion UDPstream
-                
+
                 var UDPsend = Task.Run(async delegate { await TxUDPclient.SendAsync(vDataStream.ToArray(), vDataStream.ToArray().Length, IPconf); });
                 UDPsend.Wait();
 
@@ -811,12 +811,12 @@ namespace CommunicationTest
                 }
                 if (DateTime.Now.Hour == vWaterTimeH && DateTime.Now.Minute == vWaterTimeM && DateTime.Now.Second == 59)
                 {
-                    var t_Watering = Task.Run(async delegate { await Watering(); }) ;
-                    t_Watering.Wait();
+                    Watering();
                 }
+            }
             catch (Exception e)
             {
-                this.DebugLog("[LOG]","unable to write in log");
+                this.DebugLog("[LOG]", "unable to write in log");
                 this.DebugLog("[LOG]", e.Message);
             }
         }
@@ -1028,7 +1028,8 @@ namespace CommunicationTest
                 var requestLines = request.ToString().Split(' ');
                 var url = requestLines.Length > 1 ? requestLines[1] : string.Empty;
                 var uri = new Uri("http://localhost" + url);
-                switch (uri.Query)
+                var vQueryCmd = uri.Query.Substring(0,4);
+                switch (vQueryCmd)
                 {
                     case "?120":
                         this.DebugLog("[NET]","Command 120 received, ATmega counter reset");
@@ -1165,7 +1166,19 @@ namespace CommunicationTest
                             );
 
                         return GpioDataXML.ToString();
-                    
+
+                    case "?180":
+                        this.DebugLog("[NET]", "Command 180 received, data will be read");
+                        var s1 = uri.Query.Substring(5,uri.Query.Length-5);
+                        
+                        while (s1.IndexOf("&") > 0)
+                        {
+                            Debug.WriteLine(s1.Substring(1,s1.IndexOf("&")-1));
+                            s1.Remove(0, s1.IndexOf("&") - 1);
+                        }
+
+                        return "CMD 180 OK";
+
                     case "?190":
                         this.DebugLog("[NET]", "Command 190 received, Logging data reaquested");
                         return LogDataList.ToString();
